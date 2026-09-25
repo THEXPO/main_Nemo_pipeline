@@ -1,0 +1,8 @@
+Model,group_type,group,accuracy
+llama3.1-8b,task_type,qa_numeric_program,0.9
+llama3.1-8b,company,Amberfield Agritech,1.0
+llama3.1-8b,company,Arclight Industries,1.0
+llama3.1-8b,company,Cobalt Dynamics,1.0
+llama3.1-8b,company,Halcyon Retail,0.0
+llama3.1-8b,company,Meridian Foods,1.0
+llama3.1-8b,company,Silverline Freight,1.0

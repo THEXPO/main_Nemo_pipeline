@@ -1,0 +1,2 @@
+Model,Exact Match,F1,BLEU,ROUGE,Judge Score,Completeness,Helpfulness,Reasoning Faithfulness,BERTScore,Hallucination Rate,Failure Rate,Latency (s),Throughput (req/s),Tokens/sec,Category Accuracy
+llama3.1-8b,0.9,0.9,0.45,0.9,4.7,4.68,4.68,0.85,0.8267,0.1,0.0,6.9715,0.1434,20.3,0.9
