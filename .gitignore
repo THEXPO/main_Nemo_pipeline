@@ -45,3 +45,9 @@ Thumbs.db
 # Environment variables & secrets
 .env
 .env.*
+
+# Node / Frontend
+node_modules/
+*/node_modules/
+frontend/dist/
+.npm/

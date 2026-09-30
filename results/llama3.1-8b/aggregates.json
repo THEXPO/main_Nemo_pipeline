@@ -1,9 +1,9 @@
 {
   "model": "llama3.1-8b",
-  "exact_match": 0.9,
-  "f1": 0.9,
-  "bleu": 0.45,
-  "rouge": 0.9,
+  "exact_match": 0.9083,
+  "f1": 0.9083,
+  "bleu": 0.452,
+  "rouge": 0.9083,
   "judge_score": 4.7,
   "completeness": 4.68,
   "helpfulness": 4.68,
@@ -14,5 +14,5 @@
   "latency": 6.9715,
   "throughput": 0.1434,
   "tokens_per_sec": 20.3,
-  "category_accuracy": 0.9
+  "category_accuracy": 0.9083
 }

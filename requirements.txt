@@ -1,0 +1,29 @@
+# Core Data & Numerical Processing
+numpy>=2.0.0
+pandas>=2.0.0
+scipy>=1.15.0
+scikit-learn>=1.7.0
+
+# Visualization
+matplotlib>=3.10.0
+
+# Networking & API Clients
+requests>=2.31.0
+httpx>=0.27.0
+openai>=1.0.0
+
+# NeMo Evaluator & BYOB Framework
+nemo-evaluator>=0.2.8
+
+# Datasets & Hugging Face Hub
+datasets>=3.0.0
+huggingface_hub>=0.25.0
+
+# Web Dashboard Server
+Flask>=3.0.0
+waitress>=3.0.0
+
+# Utilities & Validation
+pydantic>=2.0.0
+tqdm>=4.66.0
+PyYAML>=6.0.0

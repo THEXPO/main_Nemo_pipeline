@@ -166,28 +166,31 @@ Return ONLY compact JSON:
 
 
 def build_benchmark_prompt(row: Dict[str, Any]) -> str:
-    """Builds a structured prompt from a row of the synthetic BFSI dataset."""
+    """Builds a structured prompt from a row of the benchmark dataset."""
     task_type = row.get("task_type", "qa_numeric_program")
     question = row.get("input_text", "").strip()
     context = row.get("context", "").strip()
 
+    context_block = f"Reference Context / Rules:\n{context}\n\n" if context else ""
+    source_ref = "the provided context" if context else "domain knowledge and regulatory guidelines"
+
     if task_type == "qa_numeric_program":
         prompt = (
-            "You are an expert financial auditor performing numerical reasoning over corporate disclosures.\n\n"
-            f"Financial Table:\n{context}\n\n"
+            "You are an expert financial and banking compliance auditor performing numerical calculations.\n\n"
+            f"{context_block}"
             f"Question: {question}\n\n"
             "Instructions:\n"
-            "1. Carefully examine the table and perform the required calculation step-by-step.\n"
+            f"1. Examine {source_ref} and perform the required calculation step-by-step.\n"
             "2. State your final numeric answer clearly at the end (e.g., Final Answer: <number>)."
         )
     else:  # qa_label
         prompt = (
-            "You are an expert financial analyst answering questions based on corporate disclosures.\n\n"
-            f"Financial Table:\n{context}\n\n"
+            "You are an expert financial and banking compliance analyst answering questions.\n\n"
+            f"{context_block}"
             f"Question: {question}\n\n"
             "Instructions:\n"
-            "1. Identify the requested label, period, or entity from the table.\n"
-            "2. State your final answer clearly at the end (e.g., Final Answer: <label>)."
+            f"1. Identify the requested label, period, entity, or direct answer based on {source_ref}.\n"
+            "2. State your final answer clearly at the end (e.g., Final Answer: <answer>)."
         )
     return prompt
 
@@ -394,7 +397,7 @@ def evaluate_exact_match(
     if task_type == "qa_numeric_program":
         ref_val = normalized_answer if normalized_answer is not None else target
         try:
-            ref_float = float(str(ref_val).replace("$", "").replace(",", "").replace("%", ""))
+            ref_float = float(str(ref_val).replace("₹", "").replace("$", "").replace(",", "").replace("%", ""))
         except (ValueError, TypeError):
             return False
 
@@ -503,10 +506,10 @@ def run_similarity_metrics(predictions: List[Dict[str, Any]]) -> Dict[str, Any]:
 # 5. LLM-AS-A-JUDGE (FIX A: CORRECTNESS-ANCHORED RUBRIC)
 # ============================================================================
 
-def parse_judge_response(raw_text: str, is_correct: bool = True) -> Tuple[Dict[str, float], Optional[str]]:
+def parse_judge_response(raw_text: str, is_correct: bool = True, must_cap: bool = True) -> Tuple[Dict[str, float], Optional[str]]:
     """
     Parses judge JSON response on a 1-5 scale for judge_score, completeness, helpfulness.
-    Applies the mandatory capping rule: if not is_correct, completeness and helpfulness
+    Applies the capping rule: if must_cap and not is_correct, completeness and helpfulness
     are strictly capped at 2.0.
     """
     scores = {"judge_score": 0.0, "completeness": 0.0, "helpfulness": 0.0}
@@ -571,8 +574,8 @@ def parse_judge_response(raw_text: str, is_correct: bool = True) -> Tuple[Dict[s
                 except ValueError:
                     pass
 
-    # FIX A: Enforce capping rule as a deterministic safeguard
-    if not is_correct:
+    # FIX A: Enforce capping rule as a deterministic safeguard on numeric/short labels
+    if must_cap and not is_correct:
         scores["completeness"] = min(2.0, scores["completeness"] if scores["completeness"] > 0 else 2.0)
         scores["helpfulness"] = min(2.0, scores["helpfulness"] if scores["helpfulness"] > 0 else 2.0)
         scores["judge_score"] = min(2.0, scores["judge_score"] if scores["judge_score"] > 0 else 2.0)
@@ -634,8 +637,20 @@ def run_llm_judge(
 
         # FIX A: Anchor correctness status in prompt
         is_em = bool(row.get("exact_match", 0.0) == 1.0)
-        correct_status = "CORRECT" if is_em else "INCORRECT"
-        score_guidance = "between 4 and 5" if is_em else "1 or 2 (MUST be capped at 2)"
+        gold_str = str(gold).strip()
+        is_numeric = row.get("task_type") == "qa_numeric_program"
+        is_short_label = len(gold_str.split()) <= 3
+        must_cap = (is_numeric or is_short_label) and not is_em
+
+        if must_cap:
+            correct_status = "INCORRECT"
+            score_guidance = "1 or 2 (MUST be capped at 2)"
+        elif is_em:
+            correct_status = "CORRECT"
+            score_guidance = "between 4 and 5"
+        else:
+            correct_status = "PENDING SEMANTIC EVALUATION"
+            score_guidance = "based on factual accuracy and alignment with the gold target reference"
 
         judge_prompt = JUDGE_TEMPLATE.format(
             question=q,
@@ -670,7 +685,7 @@ def run_llm_judge(
             finish_reason = resp.get("finish_reason", "unknown")
             judge_tokens = resp.get("tokens_out", 0)
 
-            parsed, parse_msg = parse_judge_response(raw_judge_text, is_correct=is_em)
+            parsed, parse_msg = parse_judge_response(raw_judge_text, is_correct=is_em, must_cap=must_cap)
 
             # Succeeded if judge_score > 0.0 and raw_judge_text is not empty
             if parsed["judge_score"] > 0.0 and raw_judge_text.strip():
@@ -729,44 +744,56 @@ def run_llm_judge(
 # 6. CUSTOM METRICS: REASONING FAITHFULNESS (FIX B), BERTSCORE, HALLUCINATION
 # ============================================================================
 
-def reasoning_faithfulness(output_text: str, steps: list[dict]) -> float:
+def reasoning_faithfulness(output_text: str, steps: Any) -> float:
     """
-    FIX B: Fraction of the row's ground-truth intermediate/final step results
+    Fraction of the row's ground-truth intermediate/final step results
     that appear (within tolerance max(0.02, abs(v) * 0.01)) somewhere in output_text.
     1.0 = every step's result is reflected in reasoning; 0.0 = none are.
+    Supports steps as list of dicts (with 'res') or list of string formulas.
     """
     if not steps:
         return 1.0
 
-    clean_text = output_text.replace(",", "")
+    clean_text = output_text.replace(",", "").replace("₹", "").replace("$", "")
     extracted_nums = [abs(float(x)) for x in re.findall(r"-?\d+(?:\.\d+)?", clean_text)]
 
     matched_count = 0
     total_res = 0
 
     for step in steps:
-        if not isinstance(step, dict) or "res" not in step or step["res"] is None:
-            continue
-        try:
-            res_val = abs(float(step["res"]))
-        except (ValueError, TypeError):
+        target_vals = []
+        if isinstance(step, dict):
+            if "res" in step and step["res"] is not None:
+                try:
+                    target_vals.append(abs(float(str(step["res"]).replace("₹", "").replace("$", ""))))
+                except (ValueError, TypeError):
+                    pass
+        elif isinstance(step, str):
+            for n_str in re.findall(r"-?\d+(?:\.\d+)?", step.replace(",", "")):
+                try:
+                    target_vals.append(abs(float(n_str)))
+                except ValueError:
+                    pass
+
+        if not target_vals:
             continue
 
-        total_res += 1
-        variants = [res_val, res_val * 100.0, res_val / 100.0]
-        step_matched = False
+        for res_val in target_vals:
+            total_res += 1
+            variants = [res_val, res_val * 100.0, res_val / 100.0]
+            step_matched = False
 
-        for ex in extracted_nums:
-            for v in variants:
-                tol = max(0.02, abs(v) * 0.01)
-                if abs(ex - v) <= tol:
-                    step_matched = True
+            for ex in extracted_nums:
+                for v in variants:
+                    tol = max(0.02, abs(v) * 0.01)
+                    if abs(ex - v) <= tol:
+                        step_matched = True
+                        break
+                if step_matched:
                     break
-            if step_matched:
-                break
 
-        if step_matched:
-            matched_count += 1
+            if step_matched:
+                matched_count += 1
 
     return round(matched_count / total_res, 4) if total_res > 0 else 1.0
 
@@ -856,43 +883,64 @@ def is_hallucinated(response: str, row: Dict[str, Any]) -> bool:
     metadata = row.get("metadata", {}) or {}
     vals: set[float] = set()
 
-    # 1. metadata.raw_values
-    raw_vals = metadata.get("raw_values", {})
+    # 1. raw_values (root-level list or metadata dict)
+    raw_vals = row.get("raw_values") or (metadata.get("raw_values", {}) if isinstance(metadata, dict) else {})
     if isinstance(raw_vals, dict):
         for k, v_list in raw_vals.items():
             if isinstance(v_list, list):
                 for item in v_list:
                     try:
-                        vals.add(abs(float(str(item).replace("$", "").replace("%", ""))))
+                        vals.add(abs(float(str(item).replace("₹", "").replace("$", "").replace("%", ""))))
                     except (ValueError, TypeError):
                         pass
-
-    # 2. target & normalized_answer
-    for t in [row.get("target"), row.get("normalized_answer")]:
-        if t is not None:
+    elif isinstance(raw_vals, list):
+        for item in raw_vals:
             try:
-                vals.add(abs(float(str(t).replace("$", "").replace("%", ""))))
+                vals.add(abs(float(str(item).replace("₹", "").replace("$", "").replace("%", ""))))
             except (ValueError, TypeError):
                 pass
 
-    # 3. metadata.steps: res, arg1, arg2, args
-    steps = metadata.get("steps", [])
+    # 2. constants (root-level list or metadata list)
+    constants = row.get("constants") or (metadata.get("constants", []) if isinstance(metadata, dict) else [])
+    if isinstance(constants, list):
+        for c in constants:
+            try:
+                vals.add(abs(float(str(c).replace("₹", "").replace("$", ""))))
+            except (ValueError, TypeError):
+                pass
+
+    # 3. target & normalized_answer
+    for t in [row.get("target"), row.get("normalized_answer")]:
+        if t is not None:
+            try:
+                vals.add(abs(float(str(t).replace("₹", "").replace("$", "").replace("%", ""))))
+            except (ValueError, TypeError):
+                pass
+
+    # 4. steps: res, arg1, arg2, args, or numbers from string formulas
+    steps = row.get("steps") or (metadata.get("steps", []) if isinstance(metadata, dict) else [])
     if isinstance(steps, list):
         for step in steps:
             if isinstance(step, dict):
                 for k in ["arg1", "arg2", "res"]:
                     if step.get(k) is not None:
                         try:
-                            vals.add(abs(float(str(step[k]).replace("$", "").replace("%", ""))))
+                            vals.add(abs(float(str(step[k]).replace("₹", "").replace("$", "").replace("%", ""))))
                         except (ValueError, TypeError):
                             pass
                 args = step.get("args", [])
                 if isinstance(args, list):
                     for a in args:
                         try:
-                            vals.add(abs(float(str(a).replace("$", "").replace("%", ""))))
+                            vals.add(abs(float(str(a).replace("₹", "").replace("$", "").replace("%", ""))))
                         except (ValueError, TypeError):
                             pass
+            elif isinstance(step, str):
+                for n_str in re.findall(r"-?\d+(?:\.\d+)?", step.replace(",", "")):
+                    try:
+                        vals.add(abs(float(n_str)))
+                    except ValueError:
+                        pass
 
     # 4. small integers 1 through 12, plus len(metadata.periods)
     for i in range(1, 13):
@@ -1044,8 +1092,9 @@ def build_master_table(
                         "accuracy": round(float(acc), 4),
                     })
 
-            df_rows["company"] = df_rows["metadata"].apply(
-                lambda m: m.get("company", "Unknown") if isinstance(m, dict) else "Unknown"
+            df_rows["company"] = df_rows.apply(
+                lambda r: r.get("company") or (r.get("metadata", {}).get("company", "Unknown") if isinstance(r.get("metadata"), dict) else "Unknown"),
+                axis=1
             )
             c_grp = df_rows.groupby("company")["exact_match"].mean()
             for comp_val, acc in c_grp.items():
@@ -1395,7 +1444,7 @@ def benchmark_model(
         r["bert_score"] = b_score
 
         # FIX B: Reasoning Faithfulness
-        steps = r.get("metadata", {}).get("steps", [])
+        steps = r.get("steps") or (r.get("metadata", {}).get("steps", []) if isinstance(r.get("metadata"), dict) else [])
         rf = reasoning_faithfulness(r.get("output_text", ""), steps)
         r["reasoning_faithfulness"] = rf
         faithfulness_scores.append(rf)
@@ -1509,6 +1558,8 @@ def main():
     )
     parser.add_argument(
         "--output-dir",
+        "--results-dir",
+        dest="output_dir",
         type=Path,
         default=DEFAULT_RESULTS_DIR,
         help="Directory to save master_table.csv and predictions (default: results)",
