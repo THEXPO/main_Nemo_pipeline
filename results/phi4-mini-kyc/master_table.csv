@@ -1,2 +1,0 @@
-Model,Exact Match,F1,BLEU,ROUGE,Judge Score,Completeness,Helpfulness,Reasoning Faithfulness,BERTScore,Hallucination Rate,Failure Rate,Latency (s),Throughput (req/s),Tokens/sec,Category Accuracy
-phi4-mini,0.2,0.0055,0.1183,0.0055,1.8,2.6,2.6,1.0,0.5123,0.2,0.0,2.279,0.4387,33.35,0.2

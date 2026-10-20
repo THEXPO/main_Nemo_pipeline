@@ -1,0 +1,18 @@
+{
+  "model": "Ministral-3-8B-Reasoning-2512-GGUF",
+  "exact_match": 0.8,
+  "f1": 0.8095,
+  "bleu": 0.0349,
+  "rouge": 0.8095,
+  "judge_score": 5.0,
+  "completeness": 4.2,
+  "helpfulness": 5.0,
+  "reasoning_faithfulness": 1.0,
+  "bert_score": 0.5033,
+  "hallucination_rate": 0.6,
+  "failure_rate": 0.0,
+  "latency": 31.4625,
+  "throughput": 0.0318,
+  "tokens_per_sec": 14.84,
+  "category_accuracy": 0.8
+}

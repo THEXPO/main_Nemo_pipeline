@@ -129,7 +129,7 @@ def generate(prompt: str, model_name: str = MODEL_NAME, max_tokens: int = 256) -
         }
     except requests.exceptions.Timeout as te:
         latency = round(time.perf_counter() - start_time, 3)
-        err = f"Request timed out after {REQUEST_TIMEOUT}s: {te}"
+        err = f"Request timed out after {READ_TIMEOUT}s: {te}"
         print(f"    [Timeout Error] {err}")
         return {
             "output_text": "",

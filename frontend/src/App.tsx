@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { 
   BarChart2, Search, Shuffle, ShieldCheck, Zap, Award, 
   Brain, FileText, CheckCircle2, XCircle, 
-  Layers, TrendingUp, Sparkles, Server, Filter
+  Layers, TrendingUp, Sparkles, Server, Filter, Scale
 } from 'lucide-react';
+import ModelComparison from './ModelComparison';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
@@ -83,7 +84,7 @@ const MODEL_COLOR_MAP: { [key: string]: string } = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'metrics' | 'inspector' | 'company' | 'table'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'compare' | 'inspector' | 'company' | 'table'>('compare');
   const [masterData, setMasterData] = useState<ModelAggregates[]>([]);
   const [categoryData, setCategoryData] = useState<any[]>([]);
   const [modelsList, setModelsList] = useState<string[]>([]);
@@ -212,6 +213,17 @@ export default function App() {
             }}
           >
             <BarChart2 size={15} /> Metrics Graphs (15)
+          </button>
+          <button 
+            onClick={() => setActiveTab('compare')}
+            style={{ 
+              padding: '7px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px',
+              background: activeTab === 'compare' ? '#333333' : 'transparent',
+              color: activeTab === 'compare' ? '#ffa116' : 'var(--text-secondary)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Scale size={15} /> Compare 2 Models (Head-to-Head)
           </button>
           <button 
             onClick={() => setActiveTab('inspector')}
@@ -409,7 +421,20 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: PROMPT & PREDICTION INSPECTOR FOR JUDGES */}
+        {/* TAB 2: HEAD-TO-HEAD COMPARISON OF TWO SPECIFIC MODELS */}
+        {activeTab === 'compare' && (
+          <ModelComparison
+            masterData={masterData}
+            categoryData={categoryData}
+            modelsList={modelsList}
+            metricDefinitions={METRIC_DEFINITIONS}
+            modelColorMap={MODEL_COLOR_MAP}
+            initialSampleId={selectedSampleId}
+            sampleIdList={sampleIdList}
+          />
+        )}
+
+        {/* TAB 3: PROMPT & PREDICTION INSPECTOR FOR JUDGES */}
         {activeTab === 'inspector' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Control Bar */}

@@ -1,0 +1,18 @@
+{
+  "model": "Meta-Llama-3.1-8B-Instruct-GGUF",
+  "exact_match": 0.0,
+  "f1": 0.0,
+  "bleu": 0.1194,
+  "rouge": 0.0,
+  "judge_score": 5.0,
+  "completeness": 4.8,
+  "helpfulness": 5.0,
+  "reasoning_faithfulness": 1.0,
+  "bert_score": 0.4468,
+  "hallucination_rate": 0.4,
+  "failure_rate": 0.0,
+  "latency": 7.5332,
+  "throughput": 0.1327,
+  "tokens_per_sec": 16.33,
+  "category_accuracy": 0.0
+}

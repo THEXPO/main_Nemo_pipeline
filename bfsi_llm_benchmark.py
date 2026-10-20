@@ -39,6 +39,7 @@ Run each stage independently via CLI flags:
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass, field
 import json
 import logging
 import math
@@ -85,33 +86,123 @@ logger = logging.getLogger("BFSI_Benchmark")
 # Defaults
 DEFAULT_BASE_URL = "http://127.0.0.1:1234/v1"
 DEFAULT_MODEL = "local-model"
-DEFAULT_DATASET = Path("data/synthetic_bfsi_train.jsonl")
+DEFAULT_DATASET = Path("newdata/kyc_eval_dataset.jsonl")
 DEFAULT_RESULTS_DIR = Path("results")
 DEFAULT_PLOTS_DIR = Path("plots")
 DEFAULT_JUDGE_MAX_TOKENS = 1500
 
-# Per-model default generation max_tokens (reasoning models need >= 2048 headroom)
-MODEL_DEFAULT_MAX_TOKENS: Dict[str, int] = {
-    "deepseek-r1": 2048,
-    "deepseek": 2048,
-    "r1": 2048,
-    "ministral": 2048,
-    "phi4": 512,
-    "phi-4": 512,
-    "llama": 512,
-    "qwen": 512,
+# ============================================================================
+# MODEL PROFILE REGISTRY (ADAPTER PATTERN)
+# ============================================================================
+
+@dataclass
+class ModelProfile:
+    """Encapsulates runtime parameters, formatting quirks, and token limits per model family."""
+    family: str
+    max_tokens: int = 512
+    temperature: float = 0.0
+    is_reasoning: bool = False
+    assistant_prefill: Optional[str] = None
+    system_prompt: Optional[str] = None
+    strip_thinking_tags: bool = True
+
+MODEL_PROFILES: Dict[str, ModelProfile] = {
+    "deepseek-r1": ModelProfile(
+        family="deepseek-r1",
+        max_tokens=2048,
+        temperature=0.6,
+        is_reasoning=True,
+        assistant_prefill=None,
+        strip_thinking_tags=True,
+    ),
+    "deepseek": ModelProfile(
+        family="deepseek",
+        max_tokens=2048,
+        temperature=0.6,
+        is_reasoning=True,
+        assistant_prefill=None,
+        strip_thinking_tags=True,
+    ),
+    "r1": ModelProfile(
+        family="r1",
+        max_tokens=2048,
+        temperature=0.6,
+        is_reasoning=True,
+        assistant_prefill=None,
+        strip_thinking_tags=True,
+    ),
+    "qwen": ModelProfile(
+        family="qwen",
+        max_tokens=1024,
+        temperature=0.0,
+        is_reasoning=True,
+        assistant_prefill="Analysis:\n1. ",
+        strip_thinking_tags=True,
+    ),
+    "llama": ModelProfile(
+        family="llama",
+        max_tokens=512,
+        temperature=0.0,
+        is_reasoning=False,
+        assistant_prefill="Analysis:\n1. ",  # Bypasses LM Studio tool-calling prompt injection
+        strip_thinking_tags=False,
+    ),
+    "ministral-3-8b-instruct": ModelProfile(
+        family="ministral-instruct",
+        max_tokens=512,
+        temperature=0.0,
+        is_reasoning=False,
+        assistant_prefill=None,
+        strip_thinking_tags=False,
+    ),
+    "ministral": ModelProfile(
+        family="ministral-reasoning",
+        max_tokens=2048,
+        temperature=0.0,
+        is_reasoning=True,
+        assistant_prefill="Analysis:\n1. ",
+        strip_thinking_tags=True,
+    ),
+    "mistral": ModelProfile(
+        family="mistral",
+        max_tokens=512,
+        temperature=0.0,
+        is_reasoning=False,
+        assistant_prefill=None,
+        strip_thinking_tags=False,
+    ),
+    "phi": ModelProfile(
+        family="phi",
+        max_tokens=512,
+        temperature=0.0,
+        is_reasoning=False,
+        assistant_prefill=None,
+        strip_thinking_tags=False,
+    ),
 }
 
+DEFAULT_MODEL_PROFILE = ModelProfile(
+    family="default",
+    max_tokens=512,
+    temperature=0.0,
+    is_reasoning=False,
+    assistant_prefill=None,
+    strip_thinking_tags=True,
+)
+
+def get_model_profile(model_name: str) -> ModelProfile:
+    """Finds the most specific ModelProfile matching the given model identifier."""
+    m_lower = model_name.lower()
+    for key, profile in MODEL_PROFILES.items():
+        if key in m_lower:
+            return profile
+    return DEFAULT_MODEL_PROFILE
 
 def get_model_max_tokens(model_name: str, override_tokens: Optional[int] = None) -> int:
     """Returns generation max_tokens budget for a given model. Explicit override takes precedence."""
     if override_tokens is not None and override_tokens > 0:
         return override_tokens
-    m_lower = model_name.lower()
-    for key, val in MODEL_DEFAULT_MAX_TOKENS.items():
-        if key in m_lower:
-            return val
-    return 512
+    return get_model_profile(model_name).max_tokens
 
 
 def _safe_model_dir(model_name: str) -> str:
@@ -125,72 +216,84 @@ def _safe_model_dir(model_name: str) -> str:
 
 
 # ============================================================================
-# 1. JUDGE TEMPLATE & PROMPTS (FIX A & FIX B)
+# 1. JUDGE TEMPLATE & PROMPTS
 # ============================================================================
 
-JUDGE_TEMPLATE = """You are an impartial, highly rigorous financial AI judge.
-Evaluate the model response against the gold target reference and context for a financial task.
+JUDGE_TEMPLATE = """You are grading an answer to an Indian KYC compliance question.
 
-[Task Question]:
-{question}
+Question: {question}
+Context: {context}
+Reference answer: {target}
+Model response: {output_text}
 
-[Reference Context]:
-{context}
+Step 1: Extract the text after "Final Answer:" in the model response. If there
+is no "Final Answer:" line, set correctness to 0.
 
-[Gold Target Reference]:
-{gold_target}
+Step 2: Score:
+- correctness (0 or 1): 1 if the extracted answer means the same as the
+  reference. Accept paraphrases ("Two months" = "Within two months"). For
+  Yes/No, the polarity must match. For numbers, the values must be equal
+  ("\u20b948,000" = 48000). If the reference is hybrid (e.g., "Yes, a Small
+  Account"), both parts must be present.
+- reasoning_validity (1-5): is the reasoning consistent with the RBI KYC Master
+  Direction and PMLA? Max 2 if it contradicts a threshold or condition in the
+  question or context. Max 3 if it relies on non-Indian laws.
+- is_hallucinated (true/false): true if any cited law, section, threshold, or
+  figure is invented, wrong, or from the wrong jurisdiction.
 
-[Model Response]:
-{model_response}
-
-[Automated Verification]:
-Note: automated scoring found this answer to be {correct_status} against the reference.
-
-Score each dimension on a scale of 1 to 5 (integer or float 1.0 to 5.0):
-- judge_score (1 to 5): overall quality, correctness, and soundness of the response.
-- completeness (1 to 5): did the response use the relevant table values and walk through all necessary steps?
-  * IMPORTANT: if the final numeric answer does not match the reference answer (within reasonable rounding), cap this score at 2, regardless of how thorough the explanation looks.
-- helpfulness (1 to 5): would this response actually help a financial analyst get the right number?
-  * IMPORTANT: if the final answer is wrong, cap this at 2 as well — a confident wrong answer is not helpful.
-
-Since this answer is {correct_status}, completeness and helpfulness must be {score_guidance}.
-
-Return ONLY compact JSON:
-{{
-  "judge_score": <1-5>,
-  "completeness": <1-5>,
-  "helpfulness": <1-5>,
-  "reasoning": "<brief explanation>"
-}}
+Return only JSON:
+{{"extracted_answer": "<str>", "correctness": 0, "reasoning_validity": 1,
+ "is_hallucinated": false, "notes": "<one sentence>"}}
 """
 
 
 def build_benchmark_prompt(row: Dict[str, Any]) -> str:
-    """Builds a structured prompt from a row of the benchmark dataset."""
+    """Builds a structured prompt from a row of the benchmark dataset.
+
+    Uses a jurisdiction-specific Indian banking compliance template
+    (RBI Master Direction on KYC + PMLA/Rules) for qa_label tasks,
+    and a numeric-calculation template for qa_numeric_program tasks.
+    """
     task_type = row.get("task_type", "qa_numeric_program")
     question = row.get("input_text", "").strip()
     context = row.get("context", "").strip()
 
-    context_block = f"Reference Context / Rules:\n{context}\n\n" if context else ""
-    source_ref = "the provided context" if context else "domain knowledge and regulatory guidelines"
-
     if task_type == "qa_numeric_program":
+        context_block = f"Reference Context / Rules:\n{context}\n\n" if context else ""
+        source_ref = "the provided context" if context else "domain knowledge and regulatory guidelines"
         prompt = (
             "You are an expert financial and banking compliance auditor performing numerical calculations.\n\n"
             f"{context_block}"
             f"Question: {question}\n\n"
             "Instructions:\n"
             f"1. Examine {source_ref} and perform the required calculation step-by-step.\n"
-            "2. State your final numeric answer clearly at the end (e.g., Final Answer: <number>)."
+            "2. Show the arithmetic in one line, then give the result.\n"
+            "3. State your final numeric answer clearly at the end (e.g., Final Answer: <number>)."
         )
-    else:  # qa_label
+    else:
+        # KYC / compliance qa_label prompt — Indian jurisdiction only
+        context_section = context if context else "(No specific context provided — use your knowledge of RBI Master Direction on KYC and PMLA.)"
         prompt = (
-            "You are an expert financial and banking compliance analyst answering questions.\n\n"
-            f"{context_block}"
+            "You are an expert compliance analyst specializing in Indian banking regulation.\n\n"
+            "Jurisdiction: India only. Base your answer strictly on the RBI Master Direction\n"
+            "on KYC and the PMLA and its Rules. \"RE\" means Regulated Entity as defined by\n"
+            "the RBI. Never cite foreign laws (BSA, AMLD4, OFAC, FATF, etc.).\n\n"
+            f"Context (authoritative if present; use it over your own memory):\n{context_section}\n\n"
             f"Question: {question}\n\n"
-            "Instructions:\n"
-            f"1. Identify the requested label, period, entity, or direct answer based on {source_ref}.\n"
-            "2. State your final answer clearly at the end (e.g., Final Answer: <answer>)."
+            "Rules:\n"
+            "1. Apply any threshold, period, or condition in the question or context exactly.\n"
+            "   Do not generalize beyond it or contradict it. Thresholds stated as \"equal to\n"
+            "   or exceeding\" are inclusive.\n"
+            "2. For calculations, show the arithmetic in one line, then give the result.\n"
+            "3. If you are unsure of the exact provision, say so briefly. Never invent\n"
+            "   section names, numbers, or thresholds.\n"
+            "4. Keep reasoning to 2-4 sentences.\n"
+            "5. Match the answer to the question type:\n"
+            "   - Question starts with Is/Does/Can/Must/Are/Should: answer \"Yes\" or \"No\".\n"
+            "     Add a short clause only if the question also asks what or how.\n"
+            "   - Otherwise: give the direct fact, number, or name asked for.\n"
+            "6. End your response with:\n"
+            "   Final Answer: <your answer>"
         )
     return prompt
 
@@ -203,43 +306,53 @@ def call_model(
     prompt: str,
     model_id: str = DEFAULT_MODEL,
     base_url: str = DEFAULT_BASE_URL,
-    max_tokens: int = 512,
-    temperature: float = 0.0,
+    max_tokens: Optional[int] = None,
+    temperature: Optional[float] = None,
     connect_timeout: float = 5.0,
     read_timeout: float = 120.0,
     max_retries: int = 2,
     assistant_prefill: Optional[str] = None,
+    system_prompt: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Calls the configured OpenAI-compatible endpoint (LM Studio).
-    Handles retries and timeouts gracefully; on failure, records failed_call=True
-    rather than crashing the run.
+    Resolves model-specific settings (token budgets, templates, prefill) via ModelProfile.
+    Handles retries and timeouts gracefully; on failure, records failed_call=True.
     """
+    profile = get_model_profile(model_id)
+    eff_max_tokens = max_tokens if max_tokens is not None and max_tokens > 0 else profile.max_tokens
+    eff_temp = temperature if temperature is not None else profile.temperature
+
     url = f"{base_url.rstrip('/')}/chat/completions"
     headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer lm-studio",
     }
 
-    # For Llama models in LM Studio, LM Studio's chat template injects function-calling
-    # instructions into user messages, causing the model to produce tool-call JSON.
-    # Prefilling an assistant turn forces the model to respond in plain text or valid JSON.
+    # Resolve assistant turn prefill:
+    # 1. Explicit argument overrides all
+    # 2. LLM Judge calls enforce compact JSON prefill
+    # 3. Otherwise, use profile-configured prefill
     effective_prefill = assistant_prefill
     if effective_prefill is None:
-        if "judge_score" in prompt:
-            effective_prefill = '```json\n{\n  "judge_score": '
-        elif "llama" in model_id.lower():
-            effective_prefill = "Analysis:\n1. "
+        if "correctness" in prompt and "is_hallucinated" in prompt:
+            effective_prefill = '{"extracted_answer": "'
+        else:
+            effective_prefill = profile.assistant_prefill
 
-    messages: List[Dict[str, str]] = [{"role": "user", "content": prompt}]
+    messages: List[Dict[str, str]] = []
+    eff_system = system_prompt or profile.system_prompt
+    if eff_system:
+        messages.append({"role": "system", "content": eff_system})
+    messages.append({"role": "user", "content": prompt})
     if effective_prefill:
         messages.append({"role": "assistant", "content": effective_prefill})
 
     payload = {
         "model": model_id,
         "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": 0,       # override any LM Studio UI default → greedy decode
+        "max_tokens": eff_max_tokens,
+        "temperature": eff_temp,
         "seed": 42,             # deterministic output (honoured when backend supports it)
     }
 
@@ -270,6 +383,10 @@ def call_model(
                         out_text = reasoning_text
                     if effective_prefill and out_text and not out_text.startswith(effective_prefill):
                         out_text = effective_prefill + out_text
+                    if profile.strip_thinking_tags and out_text:
+                        stripped = re.sub(r"<think>.*?</think>", "", out_text, flags=re.DOTALL).strip()
+                        if stripped:
+                            out_text = stripped
                     usage = data.get("usage", {})
                     tokens_out = usage.get("completion_tokens", len(out_text.split()))
                     tokens_in = usage.get("prompt_tokens", len(prompt.split()))
@@ -320,32 +437,73 @@ def call_model(
 def get_extracted_final_answer(output_text: str) -> str:
     """
     Extracts the final-answer substring from output_text.
-    Takes everything after the LAST case-insensitive occurrence of 'final answer'.
-    Fallback: returns output_text if 'final answer' marker is not found.
+    Multi-strategy extractor:
+      1. Strips internal <think>...</think> reasoning blocks.
+      2. Extracts LaTeX \\boxed{...} answer content if present.
+      3. Searches for last occurrence of answer markers ('final answer', '**answer:**', 'the answer is').
+      4. Fallback: returns cleaned text.
     """
     if not output_text:
         return ""
-    matches = list(re.finditer(r"final answer", output_text, re.IGNORECASE))
+    # 1. Strip thinking tags if present
+    clean = re.sub(r"<think>.*?</think>", "", output_text, flags=re.DOTALL).strip()
+    if not clean:
+        clean = output_text.strip()
+
+    # 2. LaTeX \boxed{...} (used by mathematical and reasoning models)
+    boxed = re.findall(r"\\boxed\{([^}]+)\}", clean)
+    if boxed:
+        return boxed[-1].strip()
+
+    # 3. Known answer markers
+    markers = [
+        r"final answer",
+        r"\*\*final answer\*\*",
+        r"\*\*answer\*\*",
+        r"the answer is",
+        r"answer:",
+    ]
+    pattern = "|".join(f"(?:{m})" for m in markers)
+    matches = list(re.finditer(pattern, clean, re.IGNORECASE))
     if matches:
-        sub = output_text[matches[-1].end():]
+        sub = clean[matches[-1].end():]
         sub = re.sub(r"^[\s:\-*`'\"]+", "", sub)
         return sub.strip()
-    return output_text.strip()
+
+    return clean.strip()
 
 
 def extract_candidate_numbers(output_text: str) -> List[float]:
     """
-    Finds the LAST occurrence of 'final answer' and extracts all numbers
-    from that substring as a list of floats.
+    Extracts candidate numbers from the final-answer portion of output_text.
+    Supports LaTeX \\boxed{...}, 'final answer' markers, and strips <think> blocks.
     """
     if not output_text:
         return []
 
-    matches = list(re.finditer(r"final answer", output_text, re.IGNORECASE))
-    if matches:
-        substr = output_text[matches[-1].end():]
+    # Strip thinking blocks first
+    clean = re.sub(r"<think>.*?</think>", "", output_text, flags=re.DOTALL).strip()
+    if not clean:
+        clean = output_text
+
+    # 1. Check for \boxed{...}
+    boxed = re.findall(r"\\boxed\{([^}]+)\}", clean)
+    if boxed:
+        substr = boxed[-1]
     else:
-        substr = output_text
+        markers = [
+            r"final answer",
+            r"\*\*final answer\*\*",
+            r"\*\*answer\*\*",
+            r"the answer is",
+            r"answer:",
+        ]
+        pattern = "|".join(f"(?:{m})" for m in markers)
+        matches = list(re.finditer(pattern, clean, re.IGNORECASE))
+        if matches:
+            substr = clean[matches[-1].end():]
+        else:
+            substr = clean
 
     clean_substr = substr.replace(",", "")
     raw_nums = re.findall(r"-?\d+(?:\.\d+)?", clean_substr)
@@ -373,12 +531,20 @@ def numeric_match(reference: float, candidates: List[float]) -> bool:
 
 
 def normalize_label(text: str) -> str:
-    """Normalizes a label string for qa_label comparisons."""
+    """Normalizes a label string for qa_label comparisons across models."""
     if not text:
         return ""
-    m = re.search(r"(?:final answer|answer is|the answer is)[:\s]*([^\n\.]+)", text, re.IGNORECASE)
-    cand = m.group(1) if m else text
-    line = cand.strip().split("\n")[0]
+    clean = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    if not clean:
+        clean = text
+
+    # Extract \boxed{...} if present
+    boxed = re.findall(r"\\boxed\{([^}]+)\}", clean)
+    cand = boxed[-1] if boxed else clean
+
+    m = re.search(r"(?:final answer|answer is|the answer is|answer)[:\s*]*([^\n\.]+)", cand, re.IGNORECASE)
+    cand_str = m.group(1) if m else cand
+    line = cand_str.strip().split("\n")[0]
     line = re.sub(r"^(category|intent|label|answer|period)\s*:\s*", "", line, flags=re.IGNORECASE).strip()
     line = line.strip(".*`'\" ")
     return line.lower()
@@ -411,7 +577,20 @@ def evaluate_exact_match(
         pred_norm = normalize_label(response)
         if not gold_norm or not pred_norm:
             return False
-        return (gold_norm == pred_norm) or (gold_norm in pred_norm.split())
+        if gold_norm == pred_norm:
+            return True
+
+        pred_words = [re.sub(r"^\W+|\W+$", "", w) for w in pred_norm.split() if w.strip()]
+        if gold_norm in pred_words:
+            return True
+
+        # For Yes / No questions specifically, match first occurrence
+        if gold_norm in ("yes", "no"):
+            first_choice = next((w for w in pred_words if w in ("yes", "no")), None)
+            if first_choice == gold_norm:
+                return True
+
+        return bool(re.search(rf"\b{re.escape(gold_norm)}\b", pred_norm))
 
 
 # ============================================================================
@@ -473,6 +652,9 @@ def run_similarity_metrics(predictions: List[Dict[str, Any]]) -> Dict[str, Any]:
                     f1_val = float(f1_token(si_label).get("f1", 0.0))
                     r_res = rouge(si_label)
                     rouge_val = float(r_res.get("rouge_l", r_res.get("rouge_1", 0.0)))
+                    if is_em and len(target_str.split()) <= 2:
+                        f1_val = 1.0
+                        rouge_val = 1.0
                 else:
                     f1_val = em_val
                     rouge_val = em_val
@@ -508,79 +690,97 @@ def run_similarity_metrics(predictions: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 def parse_judge_response(raw_text: str, is_correct: bool = True, must_cap: bool = True) -> Tuple[Dict[str, float], Optional[str]]:
     """
-    Parses judge JSON response on a 1-5 scale for judge_score, completeness, helpfulness.
-    Applies the capping rule: if must_cap and not is_correct, completeness and helpfulness
-    are strictly capped at 2.0.
+    Parses the KYC judge JSON response.
+
+    The judge returns:
+      extracted_answer (str), correctness (0|1), reasoning_validity (1-5),
+      is_hallucinated (bool), notes (str)
+
+    These are mapped to the pipeline's standard slots:
+      correctness   (0/1) -> judge_score  : 1->5.0, 0->1.0
+      reasoning_validity (1-5) -> completeness (passed through)
+      is_hallucinated (bool) -> helpfulness : false->5.0, true->1.0
+
+    Extra fields (extracted_answer, notes) are returned in the scores dict
+    so run_llm_judge can store them on the row for debugging.
     """
-    scores = {"judge_score": 0.0, "completeness": 0.0, "helpfulness": 0.0}
+    scores: Dict[str, Any] = {
+        "judge_score": 0.0,
+        "completeness": 0.0,
+        "helpfulness": 0.0,
+        "extracted_answer": "",
+        "judge_notes": "",
+    }
     if not raw_text or not raw_text.strip():
         return scores, "Empty response from judge"
 
-    text = raw_text.strip()
-    reasoning: Optional[str] = None
+    # Strip thinking tags if judge is a reasoning model
+    text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL).strip()
+    if not text:
+        text = raw_text.strip()
 
-    # 1. Clean markdown code fence extraction: ```json ... ``` or ```{ ... }```
+    data: Optional[Dict] = None
+
+    # 1. Markdown code-fence extraction: ```json { ... } ```
     json_block = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if json_block:
         try:
             data = json.loads(json_block.group(1))
-            for k in scores.keys():
-                if k in data:
-                    val = float(data[k])
-                    scores[k] = round(max(1.0, min(5.0, val)), 2)
-            reasoning = data.get("reasoning")
         except Exception:
             pass
 
-    # 2. Extract JSON block specifically containing "judge_score" (bypasses LaTeX braces)
-    if scores["judge_score"] == 0.0:
+    # 2. First block containing the new anchor key "correctness"
+    if data is None:
         blocks = re.findall(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", text, re.DOTALL)
         for b in reversed(blocks):
-            if "judge_score" in b:
+            if "correctness" in b:
                 try:
                     data = json.loads(b)
-                    for k in scores.keys():
-                        if k in data:
-                            val = float(data[k])
-                            scores[k] = round(max(1.0, min(5.0, val)), 2)
-                    reasoning = data.get("reasoning")
-                    if scores["judge_score"] > 0.0:
-                        break
+                    break
                 except Exception:
                     pass
 
-    # 3. Greedy JSON extraction as fallback
-    if scores["judge_score"] == 0.0:
+    # 3. Greedy JSON extraction as final fallback
+    if data is None:
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             try:
                 data = json.loads(match.group(0))
-                for k in scores.keys():
-                    if k in data:
-                        val = float(data[k])
-                        scores[k] = round(max(1.0, min(5.0, val)), 2)
-                reasoning = data.get("reasoning")
             except Exception:
                 pass
 
-    # 4. Regex fallback for individual keys if json.loads failed
-    if scores["judge_score"] == 0.0:
-        for k in scores.keys():
-            m = re.search(rf'"{k}"\s*:\s*([0-9.]+)', text, re.IGNORECASE)
-            if m:
-                try:
-                    val = float(m.group(1))
-                    scores[k] = round(max(1.0, min(5.0, val)), 2)
-                except ValueError:
-                    pass
+    # 4. Regex fallback for correctness key
+    if data is None:
+        m_corr = re.search(r'"correctness"\s*:\s*([01])', text)
+        m_rv   = re.search(r'"reasoning_validity"\s*:\s*([1-5])', text)
+        m_hall = re.search(r'"is_hallucinated"\s*:\s*(true|false)', text, re.IGNORECASE)
+        if m_corr:
+            data = {
+                "correctness": int(m_corr.group(1)),
+                "reasoning_validity": int(m_rv.group(1)) if m_rv else 3,
+                "is_hallucinated": m_hall.group(1).lower() == "true" if m_hall else False,
+            }
 
-    # FIX A: Enforce capping rule as a deterministic safeguard on numeric/short labels
-    if must_cap and not is_correct:
-        scores["completeness"] = min(2.0, scores["completeness"] if scores["completeness"] > 0 else 2.0)
-        scores["helpfulness"] = min(2.0, scores["helpfulness"] if scores["helpfulness"] > 0 else 2.0)
-        scores["judge_score"] = min(2.0, scores["judge_score"] if scores["judge_score"] > 0 else 2.0)
+    if data is None:
+        return scores, "Could not parse judge JSON"
 
-    return scores, reasoning or "Parsed successfully"
+    # Map new fields -> pipeline slots
+    correctness     = int(data.get("correctness", 0))
+    reasoning_val   = float(data.get("reasoning_validity", 3))
+    is_hallucinated = bool(data.get("is_hallucinated", False))
+    extracted_ans   = str(data.get("extracted_answer", ""))
+    notes           = str(data.get("notes", ""))
+
+    # judge_score: correct=5.0, incorrect=1.0 (binary, matches old capping intent)
+    scores["judge_score"]     = 5.0 if correctness == 1 else 1.0
+    # completeness <- reasoning_validity (already 1-5)
+    scores["completeness"]    = round(max(1.0, min(5.0, reasoning_val)), 2)
+    # helpfulness: not hallucinated=5.0, hallucinated=1.0
+    scores["helpfulness"]     = 1.0 if is_hallucinated else 5.0
+    scores["extracted_answer"] = extracted_ans
+    scores["judge_notes"]      = notes
+
+    return scores, notes or "Parsed successfully"
 
 
 def run_llm_judge(
@@ -654,11 +854,9 @@ def run_llm_judge(
 
         judge_prompt = JUDGE_TEMPLATE.format(
             question=q,
-            context=ctx,
-            gold_target=gold,
-            model_response=model_out if model_out.strip() else "[NO RESPONSE / CALL FAILED]",
-            correct_status=correct_status,
-            score_guidance=score_guidance,
+            context=ctx if ctx else "(No specific context provided.)",
+            target=gold,
+            output_text=model_out if model_out.strip() else "[NO RESPONSE / CALL FAILED]",
         )
 
         parsed = {"judge_score": 0.0, "completeness": 0.0, "helpfulness": 0.0}
@@ -1395,6 +1593,8 @@ def benchmark_model(
             resp = call_model(prompt, model_id=model_name, base_url=base_url, max_tokens=gen_max_tokens)
 
             pred_record = dict(row)
+            if "id" not in pred_record and "sample_id" in pred_record:
+                pred_record["id"] = pred_record["sample_id"]
             pred_record["model"] = model_name
             pred_record["prompt"] = prompt
             pred_record["output_text"] = resp["output_text"]
@@ -1568,10 +1768,14 @@ def main():
         "--plots-dir",
         type=Path,
         default=DEFAULT_PLOTS_DIR,
-        help="Directory to save visualization charts (default: plots)",
+        help="Directory to save visualization charts (default: <output-dir>/plots)",
     )
 
     args = parser.parse_args()
+
+    # Default plots dir to <output_dir>/plots (keeps everything in one place)
+    if args.plots_dir == DEFAULT_PLOTS_DIR:
+        args.plots_dir = args.output_dir / "plots"
 
     print("=" * 80)
     print("   BFSI LLM 15-METRIC BENCHMARKING PIPELINE")
@@ -1595,6 +1799,10 @@ def main():
     with open(args.dataset, "r", encoding="utf-8") as f:
         all_rows = [json.loads(line) for line in f if line.strip()]
 
+    for r in all_rows:
+        if "id" not in r and "sample_id" in r:
+            r["id"] = r["sample_id"]
+
     total_available = len(all_rows)
     if args.sample_size > 0:
         rows_to_run = all_rows[: args.sample_size]
@@ -1610,16 +1818,15 @@ def main():
     for model_name in args.models:
         existing_preds = None
         if args.skip_generation:
-            # Priority 1: per-model folder written by a previous run
-            per_model_preds = args.output_dir / _safe_model_dir(model_name) / "predictions.jsonl"
-            # Priority 2: explicit --predictions path (combined file, filtered by model)
+            # Look for flat per-model file (new layout) then legacy subfolder
+            flat_preds = args.output_dir / f"{_safe_model_dir(model_name)}_predictions.jsonl"
             combined_preds = args.predictions
 
-            if per_model_preds.exists():
-                with open(per_model_preds, "r", encoding="utf-8") as pf:
+            if flat_preds.exists():
+                with open(flat_preds, "r", encoding="utf-8") as pf:
                     existing_preds = [json.loads(line) for line in pf if line.strip()]
-                logger.info("Resuming '%s' from per-model folder (%d rows): %s",
-                            model_name, len(existing_preds), per_model_preds)
+                logger.info("Resuming '%s' from flat file (%d rows): %s",
+                            model_name, len(existing_preds), flat_preds)
             elif combined_preds and combined_preds.exists():
                 with open(combined_preds, "r", encoding="utf-8") as pf:
                     existing_preds = [
@@ -1652,20 +1859,20 @@ def main():
         all_results[model_name] = res
         all_predictions_to_save.extend(res["scored_rows"])
 
-        # ── Per-model folder ───────────────────────────────────────────────
-        model_dir = args.output_dir / _safe_model_dir(model_name)
-        model_dir.mkdir(parents=True, exist_ok=True)
+        # ── Flat per-model files (no subfolders) ──────────────────────────
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        model_slug = _safe_model_dir(model_name)
 
-        # predictions.jsonl – every scored row for this model
-        model_preds_path = model_dir / "predictions.jsonl"
+        # {slug}_predictions.jsonl – every scored row for this model
+        model_preds_path = args.output_dir / f"{model_slug}_predictions.jsonl"
         with open(model_preds_path, "w", encoding="utf-8") as mpf:
             for row in res["scored_rows"]:
                 mpf.write(json.dumps(row) + "\n")
         logger.info("[%s] Saved %d predictions to: %s",
                     model_name, len(res["scored_rows"]), model_preds_path)
 
-        # aggregates.json – the 15 aggregate metric values
-        model_aggs_path = model_dir / "aggregates.json"
+        # {slug}_aggregates.json – the 15 aggregate metric values
+        model_aggs_path = args.output_dir / f"{model_slug}_aggregates.json"
         with open(model_aggs_path, "w", encoding="utf-8") as maf:
             json.dump({"model": model_name, **res["aggregates"]}, maf, indent=2)
         logger.info("[%s] Saved aggregates to: %s", model_name, model_aggs_path)
@@ -1730,16 +1937,15 @@ def main():
         print(cat_df.to_string(index=False))
         print("=" * 80)
 
-    model_dirs_summary = "\n".join(
-        f"  - {_safe_model_dir(m)}/  ->  {args.output_dir / _safe_model_dir(m)}"
-        for m in args.models
-    )
-    print(f"\nPipeline complete! Artifacts generated:\n"
-          f"  - Master Table:       {args.output_dir / 'master_table.csv'}\n"
-          f"  - Category Breakdown: {args.output_dir / 'category_accuracy.csv'}\n"
-          f"  - Predictions JSONL:  {preds_out_path}\n"
-          f"  - Plots Directory:    {args.plots_dir}/\n"
-          f"\nPer-model result folders:\n{model_dirs_summary}\n")
+    print(f"\nPipeline complete! All files saved to: {args.output_dir}/\n"
+          f"  master_table.csv          <- compare all models here\n"
+          f"  category_accuracy.csv     <- accuracy by task type & category\n"
+          f"  predictions.jsonl         <- all scored rows (every model)\n"
+          f"  plots/                    <- visualisation charts\n"
+          + "\n".join(
+              f"  {_safe_model_dir(m)}_predictions.jsonl  |  {_safe_model_dir(m)}_aggregates.json"
+              for m in args.models
+          ) + "\n")
 
 
 
