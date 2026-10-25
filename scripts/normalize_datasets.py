@@ -1,7 +1,7 @@
 """
 scripts/normalize_datasets.py
 ==============================
-BFSI LLM Benchmarking -- NVIDIA NeMo Evaluator FYP
+LLM Benchmarking -- NVIDIA NeMo Evaluator FYP
 Preprocessing pipeline: normalizes all 5 raw datasets into a unified JSONL schema.
 
 Output layout
@@ -973,7 +973,7 @@ def update_manifest(
 # ---------------------------------------------------------------------------
 def build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="Normalise BFSI benchmark datasets into a unified JSONL schema.",
+        description="Normalise benchmark datasets into a unified JSONL schema.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument(

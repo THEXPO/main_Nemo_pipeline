@@ -1,7 +1,7 @@
 """
-bfsi_llm_benchmark.py
-=====================
-Comprehensive 15-Metric LLM Benchmarking Pipeline for BFSI Synthetic Dataset
+llm_benchmark.py
+================
+Comprehensive 15-Metric LLM Benchmarking Pipeline for Generic Evaluation Datasets
 Using NVIDIA NeMo Evaluator & LM Studio Local Inference.
 
 THE 15 METRICS EVALUATED:
@@ -81,7 +81,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%H:%M:%S",
 )
-logger = logging.getLogger("BFSI_Benchmark")
+logger = logging.getLogger("LLM_Benchmark")
 
 # Defaults
 DEFAULT_BASE_URL = "http://127.0.0.1:1234/v1"
@@ -1338,7 +1338,7 @@ def plot_bar_per_metric(df: pd.DataFrame, output_dir: Path = DEFAULT_PLOTS_DIR):
         values = [row[c] for c in avail_cols]
         ax.bar(x + idx * width, values, width, label=row["Model"])
 
-    ax.set_title("BFSI Benchmark: Quality Metrics Comparison", fontsize=14, fontweight="bold")
+    ax.set_title("Benchmark: Quality Metrics Comparison", fontsize=14, fontweight="bold")
     ax.set_ylabel("Score (0.0 to 1.0)", fontsize=12)
     ax.set_xticks(x + width * (len(df) - 1) / 2)
     ax.set_xticklabels(avail_cols, fontsize=10, rotation=15)
@@ -1465,7 +1465,7 @@ def plot_category_heatmaps(
         ax.set_xticklabels(comp_pivot.columns, rotation=45, ha="left", fontsize=9)
         ax.set_yticks(range(len(comp_pivot.index)))
         ax.set_yticklabels(comp_pivot.index, fontsize=10)
-        ax.set_title("Model Accuracy across BFSI Companies", fontsize=12, fontweight="bold", pad=30)
+        ax.set_title("Model Accuracy across Categories / Entities", fontsize=12, fontweight="bold", pad=30)
 
         for i in range(len(comp_pivot.index)):
             for j in range(len(comp_pivot.columns)):
@@ -1690,13 +1690,13 @@ def benchmark_model(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="BFSI LLM 15-Metric Benchmark Pipeline using NVIDIA NeMo Evaluator & LM Studio"
+        description="LLM 15-Metric Benchmark Pipeline using NVIDIA NeMo Evaluator & LM Studio"
     )
     parser.add_argument(
         "--dataset",
         type=Path,
         default=DEFAULT_DATASET,
-        help="Path to synthetic BFSI dataset (default: data/synthetic_bfsi_train.jsonl)",
+        help=f"Path to evaluation dataset JSONL (default: {DEFAULT_DATASET})",
     )
     parser.add_argument(
         "--models",
@@ -1778,7 +1778,7 @@ def main():
         args.plots_dir = args.output_dir / "plots"
 
     print("=" * 80)
-    print("   BFSI LLM 15-METRIC BENCHMARKING PIPELINE")
+    print("   LLM 15-METRIC BENCHMARKING PIPELINE")
     print("   NVIDIA NeMo Evaluator & LM Studio Integration")
     print("=" * 80)
     print(f"Dataset path:      {args.dataset}")

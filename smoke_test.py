@@ -1,6 +1,6 @@
 """
 smoke_test.py
-End-to-end smoke test for BFSI LLM benchmarking pipeline across all 5 datasets.
+End-to-end smoke test for LLM benchmarking pipeline across all 5 datasets.
 Connects to an LM Studio local server, processes 5 items per dataset,
 and writes comprehensive results to smoke_test_results.json.
 """
@@ -38,7 +38,7 @@ def run_smoke_test(
     output_json_path: str = "smoke_test_results.json",
 ) -> None:
     print("\n" + "=" * 75)
-    print("      BFSI LLM BENCHMARKING PIPELINE: END-TO-END SMOKE TEST")
+    print("      LLM BENCHMARKING PIPELINE: END-TO-END SMOKE TEST")
     print("=" * 75)
 
     # 1. Check LM Studio server connectivity
@@ -246,7 +246,7 @@ def run_smoke_test(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run BFSI LLM smoke test on 5 datasets via LM Studio.")
+    parser = argparse.ArgumentParser(description="Run LLM smoke test on 5 datasets via LM Studio.")
     parser.add_argument("--data-dir", default="data/raw", help="Path to raw datasets folder (default: data/raw)")
     parser.add_argument("--model", default=MODEL_NAME, help=f"Model identifier in LM Studio (default: {MODEL_NAME})")
     parser.add_argument("--n", type=int, default=5, help="Number of samples per dataset (default: 5)")

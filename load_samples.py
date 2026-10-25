@@ -1,6 +1,6 @@
 """
 load_samples.py
-Loads a small sample (5 items each) from all 5 BFSI datasets in data/raw/
+Loads a small sample (5 items each) from all 5 benchmark datasets in data/raw/
 for pipeline smoke testing.
 """
 

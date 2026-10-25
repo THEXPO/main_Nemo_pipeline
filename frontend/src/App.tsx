@@ -74,9 +74,17 @@ const METRIC_DEFINITIONS: { [key: string]: { title: string; category: string; de
 };
 
 const MODEL_COLOR_MAP: { [key: string]: string } = {
+  // Evaluated Benchmark Models
+  "Qwen3-8B-GGUF": "#ffa116",                     // Amber / Orange
+  "Ministral-3-8B-Reasoning-2512-GGUF": "#2cbb5d", // Emerald Green
+  "OREAL-DeepSeek-R1-Distill-Qwen-7B-GGUF": "#a855f7", // Violet / Purple
+  "Meta-Llama-3.1-8B-Instruct-GGUF": "#38bdf8",   // Electric Cyan / Blue
+  "meta-llama-3.1-8b-instruct": "#38bdf8",        // Electric Cyan / Blue
+  "ministral-3-8b-instruct-2512": "#2cbb5d",      // Emerald Green
+  // Legacy / Fallback Keys
   "llama3.1-8b": "#38bdf8",
   "deepseek-r1-7b": "#a855f7",
-  "phi4-mini": "#2cbb5d",
+  "phi4-mini": "#10b981",
   "qwen2.5-7b": "#ffa116",
   "mistral-7b-v0.3": "#ef4743",
   "qwen": "#ffa116",
@@ -92,7 +100,7 @@ export default function App() {
   
   // Inspector state
   const [selectedModel, setSelectedModel] = useState<string>('llama3.1-8b');
-  const [selectedSampleId, setSelectedSampleId] = useState<string>('synthetic_bfsi_000284');
+  const [selectedSampleId, setSelectedSampleId] = useState<string>('item_001');
   const [sampleIdList, setSampleIdList] = useState<string[]>([]);
   const [sampleComparison, setSampleComparison] = useState<SampleComparison | null>(null);
   const [compareAllMode, setCompareAllMode] = useState<boolean>(true);
@@ -191,7 +199,7 @@ export default function App() {
           </div>
           <div>
             <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-              BFSI LLM Benchmarking & Evaluation Inspector
+              LLM Benchmarking & Evaluation Inspector
             </h1>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
               <span className="badge badge-neutral"><Server size={12} /> NeMo Evaluator Suite</span>
@@ -515,7 +523,7 @@ export default function App() {
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#38bdf8' }}>{sampleComparison.id}</h2>
-                        <span className="badge badge-neutral">{sampleComparison.metadata?.company || 'BFSI Disclosure'}</span>
+                        <span className="badge badge-neutral">{sampleComparison.metadata?.company || 'Category / Group'}</span>
                         <span className="badge badge-neutral">{sampleComparison.metadata?.task_type || 'qa_numeric_program'}</span>
                       </div>
                       <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '8px' }}>

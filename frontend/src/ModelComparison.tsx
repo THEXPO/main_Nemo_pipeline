@@ -81,7 +81,7 @@ export default function ModelComparison({
   modelsList,
   metricDefinitions,
   modelColorMap,
-  initialSampleId = 'synthetic_bfsi_000284',
+  initialSampleId = 'item_001',
   sampleIdList = []
 }: ModelComparisonProps) {
   // Available models from masterData
@@ -152,10 +152,29 @@ export default function ModelComparison({
     setModelB(temp);
   };
 
-  const getColor = (m: string) => modelColorMap[m] || '#38bdf8';
+  const getModelColor = (m: string, defaultColor: string) => {
+    if (!m) return defaultColor;
+    if (modelColorMap[m]) return modelColorMap[m];
+    const lower = m.toLowerCase();
+    if (lower.includes('qwen')) return '#ffa116';        // Vibrant Amber
+    if (lower.includes('deepseek') || lower.includes('oreal') || lower.includes('r1')) return '#a855f7'; // Purple
+    if (lower.includes('ministral') || lower.includes('mistral')) return '#2cbb5d'; // Emerald Green
+    if (lower.includes('llama')) return '#38bdf8';       // Electric Cyan / Blue
+    if (lower.includes('phi')) return '#10b981';         // Teal Green
+    return defaultColor;
+  };
 
-  const colorA = getColor(modelA);
-  const colorB = getColor(modelB);
+  const rawColorA = getModelColor(modelA, '#38bdf8');
+  let rawColorB = getModelColor(modelB, '#f97316');
+
+  // CRITICAL: Ensure the two compared models NEVER share the same color
+  if (rawColorA.toLowerCase() === rawColorB.toLowerCase()) {
+    // If Model A is cyan/blue, make Model B warm flame orange; otherwise make Model B electric cyan
+    rawColorB = rawColorA.toLowerCase() === '#38bdf8' ? '#f97316' : '#38bdf8';
+  }
+
+  const colorA = rawColorA;
+  const colorB = rawColorB;
 
   // Model records
   const dataA = useMemo(() => masterData.find(m => m.Model === modelA), [masterData, modelA]);
@@ -380,13 +399,26 @@ export default function ModelComparison({
     ];
   }, [dataA, dataB, modelA, modelB]);
 
-  // Preset pairings for quick testing
-  const presets = [
-    { name: "Qwen 2.5 vs Llama 3.1", a: "qwen2.5-7b", b: "llama3.1-8b" },
-    { name: "Phi-4 Mini vs DeepSeek R1", a: "phi4-mini", b: "deepseek-r1-7b" },
-    { name: "Phi-4 Mini vs Qwen 2.5", a: "phi4-mini", b: "qwen2.5-7b" },
-    { name: "Mistral 7B vs Llama 3.1", a: "mistral-7b-v0.3", b: "llama3.1-8b" }
-  ];
+  // Preset pairings for quick testing based on available models
+  const presets = useMemo(() => {
+    if (availableModels.length >= 2) {
+      const p = [
+        { name: `${availableModels[0]} vs ${availableModels[1]}`, a: availableModels[0], b: availableModels[1] }
+      ];
+      if (availableModels.length >= 3) {
+        p.push({ name: `${availableModels[0]} vs ${availableModels[2]}`, a: availableModels[0], b: availableModels[2] });
+      }
+      if (availableModels.length >= 4) {
+        p.push({ name: `${availableModels[1]} vs ${availableModels[3]}`, a: availableModels[1], b: availableModels[3] });
+      }
+      return p;
+    }
+    return [
+      { name: "Qwen3 vs Ministral", a: "Qwen3-8B-GGUF", b: "Ministral-3-8B-Reasoning-2512-GGUF" },
+      { name: "Qwen3 vs DeepSeek", a: "Qwen3-8B-GGUF", b: "OREAL-DeepSeek-R1-Distill-Qwen-7B-GGUF" },
+      { name: "Ministral vs Llama", a: "Ministral-3-8B-Reasoning-2512-GGUF", b: "Meta-Llama-3.1-8B-Instruct-GGUF" }
+    ];
+  }, [availableModels]);
 
   const totalMetrics = comparisonStats.winsA + comparisonStats.winsB + comparisonStats.ties;
   const pctA = totalMetrics > 0 ? (comparisonStats.winsA / totalMetrics) * 100 : 50;
@@ -403,7 +435,7 @@ export default function ModelComparison({
               Head-to-Head Model Benchmark Comparison
             </h2>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-              Select any two BFSI models to contrast side-by-side benchmark numbers, delta advantages, radar capabilities, and sample reasoning.
+              Select any two models to contrast side-by-side benchmark numbers, delta advantages, radar capabilities, and sample reasoning.
             </p>
           </div>
 
@@ -581,7 +613,7 @@ export default function ModelComparison({
             ) : comparisonStats.winsB > comparisonStats.winsA ? (
               <span><strong>{modelB}</strong> holds superior benchmark capability, winning <strong>{comparisonStats.winsB}</strong> out of {totalMetrics} automated and LLM-judge evaluated pillars.</span>
             ) : (
-              <span>Both models are evenly matched across the evaluated BFSI benchmark dimensions.</span>
+              <span>Both models are evenly matched across the evaluated benchmark dimensions.</span>
             )}
           </div>
         </div>
@@ -839,11 +871,11 @@ export default function ModelComparison({
             <thead>
               <tr>
                 <th style={{ width: '26%' }}>Benchmark Metric</th>
-                <th style={{ width: '20%', color: colorA, background: 'rgba(56,189,248,0.04)' }}>
+                <th style={{ width: '20%', color: colorA, background: `${colorA}15`, borderBottom: `2px solid ${colorA}` }}>
                   {modelA} (Value)
                 </th>
                 <th style={{ width: '18%', textAlign: 'center' }}>Head-to-Head Delta</th>
-                <th style={{ width: '20%', color: colorB, background: 'rgba(255,161,22,0.04)' }}>
+                <th style={{ width: '20%', color: colorB, background: `${colorB}15`, borderBottom: `2px solid ${colorB}` }}>
                   {modelB} (Value)
                 </th>
                 <th style={{ width: '16%', textAlign: 'center' }}>Category Winner</th>
@@ -976,7 +1008,7 @@ export default function ModelComparison({
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                     <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#38bdf8' }}>{sampleData.id}</span>
-                    <span className="badge badge-neutral">{sampleData.metadata?.company || 'BFSI Company'}</span>
+                    <span className="badge badge-neutral">{sampleData.metadata?.company || 'Category / Group'}</span>
                     <span className="badge badge-neutral">{sampleData.metadata?.task_type || 'qa_numeric_program'}</span>
                   </div>
                   <div style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)' }}>

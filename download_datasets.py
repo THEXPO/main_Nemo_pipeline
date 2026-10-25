@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Download 5 BFSI benchmark datasets into ./data/raw/
+Download 5 benchmark datasets into ./data/raw/
 
   1. Banking77            (GitHub: PolyAI-LDN/task-specific-datasets)  intent classification
   2. Financial PhraseBank (HF: takala/financial_phrasebank, w/ fallback) sentiment
@@ -10,9 +10,9 @@ Download 5 BFSI benchmark datasets into ./data/raw/
 
 Usage:
     pip install datasets huggingface_hub requests
-    python download_bfsi_datasets.py                 # download everything
-    python download_bfsi_datasets.py --only banking77 financial_phrasebank
-    python download_bfsi_datasets.py --out my_data/raw
+    python download_datasets.py                 # download everything
+    python download_datasets.py --only banking77 financial_phrasebank
+    python download_datasets.py --out my_data/raw
 
 A manifest.json in the output folder records what was downloaded (for reproducibility).
 """
@@ -179,7 +179,7 @@ DATASETS = {
 
 # --------------------------------------------------------------------------- #
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Download BFSI benchmark datasets")
+    ap = argparse.ArgumentParser(description="Download benchmark datasets")
     ap.add_argument("--out", default="data/raw", help="output directory (default: data/raw)")
     ap.add_argument("--only", nargs="+", choices=DATASETS.keys(), help="download only these datasets")
     args = ap.parse_args()

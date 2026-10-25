@@ -1,0 +1,18 @@
+{
+  "model": "meta-llama-3.1-8b-instruct",
+  "exact_match": 0.51,
+  "f1": 0.51,
+  "bleu": 0.2482,
+  "rouge": 0.51,
+  "judge_score": 4.76,
+  "completeness": 4.71,
+  "helpfulness": 4.84,
+  "reasoning_faithfulness": 1.0,
+  "bert_score": 0.2373,
+  "hallucination_rate": 0.29,
+  "failure_rate": 0.0,
+  "latency": 9.3868,
+  "throughput": 0.1065,
+  "tokens_per_sec": 13.93,
+  "category_accuracy": 0.51
+}

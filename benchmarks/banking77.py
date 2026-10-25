@@ -41,7 +41,7 @@ _CATEGORIES_PATH = _HERE.parent / "data" / "raw" / "banking77" / "categories.jso
 if not _CATEGORIES_PATH.exists():
     raise FileNotFoundError(
         f"Banking77 categories file not found at: {_CATEGORIES_PATH}\n"
-        "Make sure you have downloaded the dataset with download_bfsi_datasets.py."
+        "Make sure you have downloaded the dataset with download_datasets.py."
     )
 
 with _CATEGORIES_PATH.open("r", encoding="utf-8") as _f:

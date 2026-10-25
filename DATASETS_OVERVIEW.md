@@ -1,6 +1,6 @@
-# BFSI Benchmark Datasets: Overview & Sample Examples
+# Benchmark Datasets: Overview & Sample Examples
 
-This document provides a comprehensive guide to the 5 Banking, Financial Services, and Insurance (BFSI) benchmark datasets stored in [`data/raw/`](file:///d:/Sem%207/Edi/NeMo%20project/Project/data/raw/). It is designed so that anyone reviewing this project can immediately understand what each dataset contains, how it is structured, and what tasks it supports.
+This document provides a comprehensive guide to the benchmark datasets stored in [`data/raw/`](file:///d:/Sem%207/Edi/NeMo%20project/Project/data/raw/). It is designed so that anyone reviewing this project can immediately understand what each dataset contains, how it is structured, and what tasks it supports.
 
 ---
 

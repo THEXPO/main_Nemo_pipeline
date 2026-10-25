@@ -1,2 +1,6 @@
 Model,Exact Match,F1,BLEU,ROUGE,Judge Score,Completeness,Helpfulness,Reasoning Faithfulness,BERTScore,Hallucination Rate,Failure Rate,Latency (s),Throughput (req/s),Tokens/sec,Category Accuracy
-Ministral-3-8B-Reasoning-2512-GGUF,0.8,0.8095,0.0349,0.8095,5.0,4.2,5.0,1.0,0.5033,0.6,0.0,31.4625,0.0318,14.84,0.8
+meta-llama-3.1-8b-instruct,0.51,0.51,0.2482,0.51,4.76,4.71,4.84,1.0,0.2373,0.29,0.0,9.3868,0.1065,13.93,0.51
+ministral-3-8b-instruct-2512,0.63,0.63,0.1144,0.63,4.48,4.3,4.76,1.0,0.445,0.49,0.0,24.2293,0.0413,4.47,0.63
+Ministral-3-8B-Reasoning-2512-GGUF,0.68,0.721,0.413,0.7197,4.68,4.32,4.92,1.0,0.7187,0.48,0.01,19.3649,0.0516,18.66,0.68
+OREAL-DeepSeek-R1-Distill-Qwen-7B-GGUF,0.63,0.6523,0.3301,0.6512,4.96,1.48,5.0,0.935,0.6654,0.33,0.0,17.1175,0.0584,24.42,0.63
+Qwen3-8B-GGUF,0.71,0.7413,0.4902,0.7389,4.44,2.28,4.88,0.993,0.3168,0.14,0.0,4.5864,0.218,15.55,0.71

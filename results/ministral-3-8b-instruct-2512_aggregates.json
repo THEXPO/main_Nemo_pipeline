@@ -1,0 +1,18 @@
+{
+  "model": "ministral-3-8b-instruct-2512",
+  "exact_match": 0.63,
+  "f1": 0.63,
+  "bleu": 0.1144,
+  "rouge": 0.63,
+  "judge_score": 4.48,
+  "completeness": 4.3,
+  "helpfulness": 4.76,
+  "reasoning_faithfulness": 1.0,
+  "bert_score": 0.445,
+  "hallucination_rate": 0.49,
+  "failure_rate": 0.0,
+  "latency": 24.2293,
+  "throughput": 0.0413,
+  "tokens_per_sec": 4.47,
+  "category_accuracy": 0.63
+}

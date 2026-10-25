@@ -1,4 +1,4 @@
-# BFSI Indian Banking Compliance LLM Benchmark Report
+# Compliance & Regulatory LLM Benchmark Report
 ## Comparative Evaluation of 4 Models on RBI Master Direction KYC Dataset (Sample Size: 5)
 
 > **Evaluator:** NVIDIA NeMo Evaluator & LM Studio Benchmark Pipeline  

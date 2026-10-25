@@ -1,6 +1,6 @@
 """
 prompt_templates.py
-Generates simple, clear prompts for the 5 BFSI benchmark datasets.
+Generates simple, clear prompts for benchmark datasets.
 Prints the built prompt for item #1 of each dataset to inspect prompt quality.
 """
 

@@ -7,7 +7,11 @@ import random
 def generate_data():
     project_dir = Path(r"d:\Sem 7\Edi\NeMo project\Project")
     results_dir = project_dir / "results"
-    data_file = project_dir / "data" / "synthetic_bfsi_train.jsonl"
+    data_file = project_dir / "newdata" / "kyc_eval_dataset.jsonl"
+    if not data_file.exists():
+        any_jsonl = list((project_dir / "newdata").glob("*.jsonl")) or list((project_dir / "data").glob("*.jsonl"))
+        if any_jsonl:
+            data_file = any_jsonl[0]
     
     # Read base dataset items
     base_items = []
