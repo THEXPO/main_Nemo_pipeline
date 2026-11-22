@@ -16,6 +16,54 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
+ORIGINAL_METRIC_MAP = {
+    "exact_match": "Exact Match",
+    "f1": "F1",
+    "bleu": "BLEU",
+    "rouge": "ROUGE",
+    "judge_score": "Judge Score",
+    "completeness": "Completeness",
+    "helpfulness": "Helpfulness",
+    "reasoning_faithfulness": "Reasoning Faithfulness",
+    "bert_score": "BERTScore",
+    "hallucination_rate": "Hallucination Rate",
+    "failure_rate": "Failure Rate",
+    "latency": "Latency (s)",
+    "throughput": "Throughput (req/s)",
+    "tokens_per_sec": "Tokens/sec",
+    "category_accuracy": "Category Accuracy",
+}
+
+DERIVED_METRIC_MAP = {
+    "fn_call_leak_rate": "FN Call Leak Rate",
+    "extraction_success_rate": "Extraction Success Rate",
+    "final_answer_line_rate": "Final Answer Line Rate",
+    "answer_recoverable_rate": "Answer Recoverable Rate",
+    "label_exact_match": "Label Exact Match",
+    "numeric_exact_match": "Numeric Exact Match",
+    "judge_em_gap": "Judge EM Gap",
+    "judge_composite": "Judge Composite",
+    "judge_leniency_rate": "Judge Leniency Rate",
+    "judge_fail_rate": "Judge Fail Rate",
+    "reliable_accuracy": "Reliable Accuracy",
+    "hallucinated_but_correct_rate": "Hallucinated But Correct",
+    "ungrounded_number_ratio": "Ungrounded Number Ratio",
+    "ungrounded_flag_delta": "Ungrounded Flag Delta",
+    "hallucination_separation": "Hallucination Separation",
+    "label_hedge_rate": "Label Hedge Rate",
+    "latency_per_correct": "Latency per Correct",
+    "tokens_per_correct": "Tokens per Correct",
+    "latency_p95": "Latency P95 (s)",
+    "latency_cv": "Latency CV",
+    "quality_per_second": "Quality per Second",
+    "output_input_token_ratio": "Output/Input Token Ratio",
+    "verbosity_accuracy_corr": "Verbosity-Accuracy Corr",
+    "macro_exact_match": "Macro Exact Match",
+    "worst_category_em": "Worst Category EM",
+    "category_em_std": "Category EM Std",
+    "em_ci95_halfwidth": "EM 95% CI Halfwidth",
+}
+
 @app.route('/api/models', methods=['GET'])
 def get_models():
     models = set()
@@ -25,13 +73,48 @@ def get_models():
             if d.is_dir() and (d / "aggregates.json").exists():
                 models.add(d.name)
         # Check flat files
+        for f in RESULTS_DIR.glob("*_all_metrics.json"):
+            model_name = f.name[:-len("_all_metrics.json")]
+            models.add(model_name)
         for f in RESULTS_DIR.glob("*_aggregates.json"):
             model_name = f.name[:-len("_aggregates.json")]
             models.add(model_name)
     return jsonify({"models": sorted(list(models))})
 
+@app.route('/api/derived-catalog', methods=['GET'])
+def get_derived_catalog():
+    try:
+        from derived_metrics import FEATURE_CATALOG
+        return jsonify(FEATURE_CATALOG)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/master-table', methods=['GET'])
 def get_master_table():
+    # If all_metrics files exist, build the full 42-metric records
+    all_files = list(RESULTS_DIR.glob("*_all_metrics.json"))
+    if all_files:
+        rows = []
+        for f in sorted(all_files):
+            try:
+                with open(f, "r", encoding="utf-8") as fp:
+                    data = json.load(fp)
+                model_name = data.get("model", f.name[:-len("_all_metrics.json")])
+                row = {"Model": model_name, "model": model_name}
+                for k, title in ORIGINAL_METRIC_MAP.items():
+                    val = data.get(k, 0.0)
+                    row[title] = val
+                    row[k] = val
+                for k, title in DERIVED_METRIC_MAP.items():
+                    val = data.get(k, 0.0)
+                    row[title] = val
+                    row[k] = val
+                rows.append(row)
+            except Exception as err:
+                print(f"Error reading {f}: {err}")
+        if rows:
+            return jsonify(rows)
+
     master_csv = RESULTS_DIR / "master_table.csv"
     if master_csv.exists():
         import pandas as pd

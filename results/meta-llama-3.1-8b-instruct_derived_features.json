@@ -1,0 +1,143 @@
+{
+  "model": "meta-llama-3.1-8b-instruct",
+  "n_samples": 100,
+  "derived_features": {
+    "fn_call_leak_rate": 0.7,
+    "extraction_success_rate": 0.13,
+    "final_answer_line_rate": 0.69,
+    "answer_recoverable_rate": 0.5,
+    "label_exact_match": 0.06,
+    "numeric_exact_match": 0.96,
+    "judge_em_gap": 0.442,
+    "judge_composite": 4.77,
+    "judge_leniency_rate": 0.43,
+    "judge_fail_rate": 0.06,
+    "reliable_accuracy": 0.41,
+    "hallucinated_but_correct_rate": 0.1,
+    "ungrounded_number_ratio": 0.4174,
+    "ungrounded_flag_delta": 0.2527,
+    "hallucination_separation": 0.1917,
+    "label_hedge_rate": 0.8,
+    "latency_per_correct": 18.4055,
+    "tokens_per_correct": 256.3922,
+    "latency_p95": 16.215,
+    "latency_cv": 0.3634,
+    "quality_per_second": 0.5071,
+    "output_input_token_ratio": 0.4169,
+    "verbosity_accuracy_corr": -0.3928,
+    "macro_exact_match": 0.3397,
+    "worst_category_em": 0.0,
+    "category_em_std": 0.3104,
+    "em_ci95_halfwidth": 0.095
+  },
+  "catalog": {
+    "fn_call_leak_rate": {
+      "group": "FORMAT",
+      "description": "Share of model outputs containing raw function-call JSON syntax or headers."
+    },
+    "extraction_success_rate": {
+      "group": "FORMAT",
+      "description": "Share of predictions with non-empty extracted answer after whitespace stripping."
+    },
+    "final_answer_line_rate": {
+      "group": "FORMAT",
+      "description": "Share of outputs containing an explicit 'Final Answer' line (case-insensitive)."
+    },
+    "answer_recoverable_rate": {
+      "group": "FORMAT",
+      "description": "Share of outputs where reference answer is literally stated in the pre-JSON text."
+    },
+    "label_exact_match": {
+      "group": "TASK",
+      "description": "Mean exact match accuracy for label / classification questions (qa_label)."
+    },
+    "numeric_exact_match": {
+      "group": "TASK",
+      "description": "Mean exact match accuracy for numerical / arithmetic questions (qa_numeric_program)."
+    },
+    "judge_em_gap": {
+      "group": "JUDGE",
+      "description": "Normalized gap between LLM judge score and exact match: mean(judge_score)/5 - mean(EM)."
+    },
+    "judge_composite": {
+      "group": "JUDGE",
+      "description": "Composite quality score: arithmetic mean of mean judge score, completeness, and helpfulness."
+    },
+    "judge_leniency_rate": {
+      "group": "JUDGE",
+      "description": "Share of predictions awarded high judge score (>= 4) despite zero exact match."
+    },
+    "judge_fail_rate": {
+      "group": "JUDGE",
+      "description": "Share of predictions receiving a failing judge score (<= 2)."
+    },
+    "reliable_accuracy": {
+      "group": "RELIABILITY",
+      "description": "Share of predictions that achieved exact match (1.0) without being flagged hallucinated."
+    },
+    "hallucinated_but_correct_rate": {
+      "group": "RELIABILITY",
+      "description": "Share of predictions achieving exact match (1.0) while being flagged hallucinated."
+    },
+    "ungrounded_number_ratio": {
+      "group": "RELIABILITY",
+      "description": "Average ratio of distinct reasoning numbers not present in prompt, context, or target."
+    },
+    "ungrounded_flag_delta": {
+      "group": "RELIABILITY",
+      "description": "Mean ungrounded ratio of hallucinated samples minus that of non-hallucinated samples."
+    },
+    "hallucination_separation": {
+      "group": "RELIABILITY",
+      "description": "Separation power of hallucination flag: P(Hallucinated | EM == 0) - P(Hallucinated | EM == 1)."
+    },
+    "label_hedge_rate": {
+      "group": "RELIABILITY",
+      "description": "Share of label questions matching uncertainty/hedging phrases in output text."
+    },
+    "latency_per_correct": {
+      "group": "EFFICIENCY",
+      "description": "Average generation latency in seconds required per unit of exact match accuracy."
+    },
+    "tokens_per_correct": {
+      "group": "EFFICIENCY",
+      "description": "Average generated tokens consumed per unit of exact match accuracy."
+    },
+    "latency_p95": {
+      "group": "EFFICIENCY",
+      "description": "95th percentile generation latency across samples (seconds)."
+    },
+    "latency_cv": {
+      "group": "EFFICIENCY",
+      "description": "Coefficient of variation of generation latency: sample std / mean latency."
+    },
+    "quality_per_second": {
+      "group": "EFFICIENCY",
+      "description": "Mean judge score delivered per second of generation latency."
+    },
+    "output_input_token_ratio": {
+      "group": "EFFICIENCY",
+      "description": "Average ratio of generated output tokens to prompt input tokens."
+    },
+    "verbosity_accuracy_corr": {
+      "group": "EFFICIENCY",
+      "description": "Pearson correlation coefficient between output token count and exact match."
+    },
+    "macro_exact_match": {
+      "group": "ROBUSTNESS",
+      "description": "Macro-averaged exact match across all category subgroups."
+    },
+    "worst_category_em": {
+      "group": "ROBUSTNESS",
+      "description": "Minimum exact match accuracy among categories with at least 5 samples."
+    },
+    "category_em_std": {
+      "group": "ROBUSTNESS",
+      "description": "Sample standard deviation of exact match across categories with at least 5 samples."
+    },
+    "em_ci95_halfwidth": {
+      "group": "ROBUSTNESS",
+      "description": "Half-width of 95% bootstrap confidence interval of mean exact match (2,000 resamples, seed 0)."
+    }
+  }
+}

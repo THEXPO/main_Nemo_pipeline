@@ -1770,6 +1770,16 @@ def main():
         default=DEFAULT_PLOTS_DIR,
         help="Directory to save visualization charts (default: <output-dir>/plots)",
     )
+    parser.add_argument(
+        "--no-derived-metrics",
+        action="store_true",
+        help="Disable the derived metrics computation layer (kill switch)",
+    )
+    parser.add_argument(
+        "--merge-into-aggregates",
+        action="store_true",
+        help="Add derived features under 'derived' key in the aggregates JSON",
+    )
 
     args = parser.parse_args()
 
@@ -1876,6 +1886,20 @@ def main():
         with open(model_aggs_path, "w", encoding="utf-8") as maf:
             json.dump({"model": model_name, **res["aggregates"]}, maf, indent=2)
         logger.info("[%s] Saved aggregates to: %s", model_name, model_aggs_path)
+
+        # ── Derived Metrics Layer Hook (Mode B, Fail-safe) ─────────────────
+        try:
+            if not getattr(args, "no_derived_metrics", False):
+                from derived_metrics import process_model_files, is_derived_metrics_enabled
+                if is_derived_metrics_enabled():
+                    process_model_files(
+                        predictions_path=model_preds_path,
+                        aggregates_path=model_aggs_path,
+                        output_dir=args.output_dir,
+                        merge_into_aggregates=getattr(args, "merge_into_aggregates", False),
+                    )
+        except Exception as dm_err:
+            logger.warning("[%s] Derived metrics calculation failed (non-fatal): %s", model_name, dm_err)
         # ──────────────────────────────────────────────────────────────────
 
     # 3. Save Raw Predictions JSONL

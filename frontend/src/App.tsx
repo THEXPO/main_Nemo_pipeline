@@ -11,21 +11,7 @@ import {
 
 interface ModelAggregates {
   Model: string;
-  "Exact Match": number;
-  F1: number;
-  BLEU: number;
-  ROUGE: number;
-  "Judge Score": number;
-  Completeness: number;
-  Helpfulness: number;
-  "Reasoning Faithfulness": number;
-  BERTScore: number;
-  "Hallucination Rate": number;
-  "Failure Rate": number;
-  "Latency (s)": number;
-  "Throughput (req/s)": number;
-  "Tokens/sec": number;
-  "Category Accuracy": number;
+  [key: string]: any;
 }
 
 interface SampleComparison {
@@ -51,11 +37,15 @@ interface SampleComparison {
       tokens_out: number;
       is_hallucinated: boolean;
       is_failure: boolean;
+      has_fn_call_leak?: boolean;
+      is_answer_recoverable?: number;
+      ungrounded_number_ratio?: number;
     }
   }
 }
 
 const METRIC_DEFINITIONS: { [key: string]: { title: string; category: string; description: string; unit: string; isLowerBetter?: boolean; format?: (v: number) => string; color: string } } = {
+  // CORE 15 METRICS
   "Exact Match": { title: "Exact Match (EM)", category: "Accuracy & Match", description: "Strict string/numeric equality with ground truth target", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#38bdf8" },
   "F1": { title: "Token F1 Score", category: "Accuracy & Match", description: "Harmonic mean of precision & recall over extracted tokens", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#ffa116" },
   "BLEU": { title: "BLEU Score", category: "Accuracy & Match", description: "N-gram overlap precision score vs reference text", unit: "Score", format: (v) => v.toFixed(3), color: "#a855f7" },
@@ -70,7 +60,47 @@ const METRIC_DEFINITIONS: { [key: string]: { title: string; category: string; de
   "Latency (s)": { title: "Generation Latency", category: "Performance & Speed", description: "Average generation time per request in seconds (Lower is better!)", unit: "s", isLowerBetter: true, format: (v) => `${v.toFixed(2)}s`, color: "#ffc01e" },
   "Throughput (req/s)": { title: "Request Throughput", category: "Performance & Speed", description: "Total completed inference requests per second", unit: "req/s", format: (v) => `${v.toFixed(3)}`, color: "#2cbb5d" },
   "Tokens/sec": { title: "Output Token Speed", category: "Performance & Speed", description: "Average output generation speed in tokens per second", unit: "tok/s", format: (v) => `${v.toFixed(1)} tok/s`, color: "#38bdf8" },
-  "Category Accuracy": { title: "Overall Category Accuracy", category: "Accuracy & Match", description: "Tidy accuracy aggregated across task types and company disclosures", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#a855f7" }
+  "Category Accuracy": { title: "Overall Category Accuracy", category: "Accuracy & Match", description: "Tidy accuracy aggregated across task types and company disclosures", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#a855f7" },
+
+  // DERIVED 27 METRICS
+  // Group 1: Format & Leakage
+  "FN Call Leak Rate": { title: "FN Call Leak Rate", category: "Format & Leakage", description: "Share of model outputs leaking raw function-call JSON syntax (Lower is better!)", unit: "%", isLowerBetter: true, format: (v) => `${(v * 100).toFixed(1)}%`, color: "#f43f5e" },
+  "Extraction Success Rate": { title: "Extraction Success Rate", category: "Format & Leakage", description: "Share of predictions with non-empty extracted final answer", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#10b981" },
+  "Final Answer Line Rate": { title: "Final Answer Line Rate", category: "Format & Leakage", description: "Share of outputs containing an explicit 'Final Answer:' header", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#06b6d4" },
+  "Answer Recoverable Rate": { title: "Answer Recoverable Rate", category: "Format & Leakage", description: "Share where ground-truth answer was stated in pre-JSON reasoning text", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#8b5cf6" },
+
+  // Group 2: Task Granularity
+  "Label Exact Match": { title: "Label Exact Match", category: "Task Granularity", description: "Mean exact match accuracy on label/classification tasks (qa_label)", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#3b82f6" },
+  "Numeric Exact Match": { title: "Numeric Exact Match", category: "Task Granularity", description: "Mean exact match accuracy on numeric arithmetic tasks (qa_numeric_program)", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#6366f1" },
+
+  // Group 3: Judge Alignment
+  "Judge EM Gap": { title: "Judge EM Gap", category: "Judge Alignment", description: "Normalized delta between LLM judge score and exact match (mean(judge)/5 - mean(EM))", unit: "Gap", isLowerBetter: true, format: (v) => v.toFixed(3), color: "#ec4899" },
+  "Judge Composite": { title: "Judge Composite", category: "Judge Alignment", description: "Harmonic composite of mean judge score, completeness, and helpfulness", unit: "/ 5.0", format: (v) => `${v.toFixed(2)} / 5.0`, color: "#f59e0b" },
+  "Judge Leniency Rate": { title: "Judge Leniency Rate", category: "Judge Alignment", description: "Share of samples awarded judge >= 4 despite 0 exact match (Lower is better!)", unit: "%", isLowerBetter: true, format: (v) => `${(v * 100).toFixed(1)}%`, color: "#f97316" },
+  "Judge Fail Rate": { title: "Judge Fail Rate", category: "Judge Alignment", description: "Share of samples receiving a failing judge score <= 2 (Lower is better!)", unit: "%", isLowerBetter: true, format: (v) => `${(v * 100).toFixed(1)}%`, color: "#ef4444" },
+
+  // Group 4: Reliability & Grounding
+  "Reliable Accuracy": { title: "Reliable Accuracy", category: "Reliability & Grounding", description: "Share of predictions both Exact Match correct and completely non-hallucinated", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#14b8a6" },
+  "Hallucinated But Correct": { title: "Hallucinated But Correct", category: "Reliability & Grounding", description: "Share of correct answers that contained ungrounded reasoning (Lower is better!)", unit: "%", isLowerBetter: true, format: (v) => `${(v * 100).toFixed(1)}%`, color: "#f43f5e" },
+  "Ungrounded Number Ratio": { title: "Ungrounded Number Ratio", category: "Reliability & Grounding", description: "Average ratio of distinct reasoning numbers not traceable to context/prompt", unit: "%", isLowerBetter: true, format: (v) => `${(v * 100).toFixed(1)}%`, color: "#e11d48" },
+  "Ungrounded Flag Delta": { title: "Ungrounded Flag Delta", category: "Reliability & Grounding", description: "Ungrounded ratio difference between hallucinated and non-hallucinated rows", unit: "Delta", format: (v) => v.toFixed(4), color: "#a855f7" },
+  "Hallucination Separation": { title: "Hallucination Separation", category: "Reliability & Grounding", description: "Separation power of hallucination flag: P(H | EM=0) - P(H | EM=1)", unit: "Delta", format: (v) => v.toFixed(4), color: "#8b5cf6" },
+  "Label Hedge Rate": { title: "Label Hedge Rate", category: "Reliability & Grounding", description: "Share of label question responses expressing uncertainty or hedging phrases", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#eab308" },
+
+  // Group 5: Efficiency & Scaling
+  "Latency per Correct": { title: "Latency per Correct", category: "Efficiency & Scaling", description: "Average generation latency in seconds required per unit of EM (Lower is better!)", unit: "s/EM", isLowerBetter: true, format: (v) => `${v.toFixed(2)}s`, color: "#f59e0b" },
+  "Tokens per Correct": { title: "Tokens per Correct", category: "Efficiency & Scaling", description: "Average output tokens consumed per unit of exact match accuracy", unit: "tok/EM", isLowerBetter: true, format: (v) => `${v.toFixed(1)}`, color: "#eab308" },
+  "Latency P95 (s)": { title: "Latency P95 (s)", category: "Efficiency & Scaling", description: "95th percentile generation latency across samples (Lower is better!)", unit: "s", isLowerBetter: true, format: (v) => `${v.toFixed(2)}s`, color: "#f97316" },
+  "Latency CV": { title: "Latency CV", category: "Efficiency & Scaling", description: "Coefficient of variation of generation latency (std / mean)", unit: "CV", isLowerBetter: true, format: (v) => v.toFixed(3), color: "#f59e0b" },
+  "Quality per Second": { title: "Quality per Second", category: "Efficiency & Scaling", description: "Mean judge score delivered per second of generation latency", unit: "pts/s", format: (v) => `${v.toFixed(3)}/s`, color: "#10b981" },
+  "Output/Input Token Ratio": { title: "Output/Input Token Ratio", category: "Efficiency & Scaling", description: "Average ratio of generated output tokens to prompt input tokens", unit: "Ratio", format: (v) => v.toFixed(3), color: "#06b6d4" },
+  "Verbosity-Accuracy Corr": { title: "Verbosity-Accuracy Corr", category: "Efficiency & Scaling", description: "Pearson correlation coefficient between output token count and exact match", unit: "r", format: (v) => v.toFixed(3), color: "#6366f1" },
+
+  // Group 6: Robustness & CI
+  "Macro Exact Match": { title: "Macro Exact Match", category: "Robustness & CI", description: "Macro-averaged exact match accuracy across all category subgroups", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#3b82f6" },
+  "Worst Category EM": { title: "Worst Category EM", category: "Robustness & CI", description: "Minimum exact match accuracy among categories with at least 5 samples", unit: "%", format: (v) => `${(v * 100).toFixed(1)}%`, color: "#ec4899" },
+  "Category EM Std": { title: "Category EM Std", category: "Robustness & CI", description: "Standard deviation of exact match across categories (n >= 5, Lower is better!)", unit: "Std", isLowerBetter: true, format: (v) => v.toFixed(4), color: "#a855f7" },
+  "EM 95% CI Halfwidth": { title: "EM 95% CI Halfwidth", category: "Robustness & CI", description: "Bootstrap 95% confidence interval half-width of mean EM (2000 resamples, seed 0)", unit: "±%", isLowerBetter: true, format: (v) => `±${(v * 100).toFixed(2)}%`, color: "#8b5cf6" }
 };
 
 const MODEL_COLOR_MAP: { [key: string]: string } = {
@@ -168,8 +198,15 @@ export default function App() {
       .catch(err => console.error(err));
   };
 
+  const [tableFilter, setTableFilter] = useState<'all' | 'core' | 'derived'>('all');
+
+  const CORE_CATEGORIES = ['Accuracy & Match', 'LLM Judge & Quality', 'Faithfulness & Safety', 'Performance & Speed'];
+  const DERIVED_CATEGORIES = ['Format & Leakage', 'Task Granularity', 'Judge Alignment', 'Reliability & Grounding', 'Efficiency & Scaling', 'Robustness & CI'];
+
   const filteredMetrics = Object.keys(METRIC_DEFINITIONS).filter(metricKey => {
-    if (metricFilter === 'All') return true;
+    if (metricFilter === 'All (42)' || metricFilter === 'All') return true;
+    if (metricFilter === 'Core 15') return CORE_CATEGORIES.includes(METRIC_DEFINITIONS[metricKey].category);
+    if (metricFilter === 'Derived 27') return DERIVED_CATEGORIES.includes(METRIC_DEFINITIONS[metricKey].category);
     return METRIC_DEFINITIONS[metricKey].category === metricFilter;
   });
 
@@ -203,7 +240,7 @@ export default function App() {
             </h1>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
               <span className="badge badge-neutral"><Server size={12} /> NeMo Evaluator Suite</span>
-              <span className="badge badge-neutral"><Layers size={12} /> 15 Evaluated Metrics</span>
+              <span className="badge badge-neutral"><Layers size={12} /> 42 Total Metrics (15 Core + 27 Derived)</span>
               <span className="badge badge-orange"><CheckCircle2 size={12} /> 5 Models Compared</span>
             </div>
           </div>
@@ -220,7 +257,7 @@ export default function App() {
               transition: 'all 0.15s ease'
             }}
           >
-            <BarChart2 size={15} /> Metrics Graphs (15)
+            <BarChart2 size={15} /> Metrics Graphs (42)
           </button>
           <button 
             onClick={() => setActiveTab('compare')}
@@ -264,22 +301,22 @@ export default function App() {
               transition: 'all 0.15s ease'
             }}
           >
-            <FileText size={15} /> Master Table
+            <FileText size={15} /> Master Table (42)
           </button>
         </div>
       </header>
 
       {/* Main Container */}
       <main style={{ padding: '24px', flex: 1 }}>
-        {/* Quick Stats Top Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+        {/* Quick Stats Top Cards (Core + Derived Highlights) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '24px' }}>
           <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{ background: '#2c2c2c', padding: '10px', borderRadius: '8px', color: '#38bdf8', border: '1px solid #383838' }}>
               <Award size={22} />
             </div>
             <div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Top EM Performer</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                 {masterData.length > 0 ? getTopModelForMetric("Exact Match")?.Model : "Loading..."}
               </div>
               <div style={{ fontSize: '0.75rem', color: '#2cbb5d', fontWeight: 600, marginTop: '1px' }}>
@@ -294,11 +331,56 @@ export default function App() {
             </div>
             <div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Highest Judge Score</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                 {masterData.length > 0 ? getTopModelForMetric("Judge Score")?.Model : "Loading..."}
               </div>
               <div style={{ fontSize: '0.75rem', color: '#ffa116', fontWeight: 600, marginTop: '1px' }}>
                 {masterData.length > 0 ? `${(getTopModelForMetric("Judge Score")?.["Judge Score"] ?? 0).toFixed(2)} / 5.0 Rating` : ""}
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ background: '#2c2c2c', padding: '10px', borderRadius: '8px', color: '#14b8a6', border: '1px solid #383838' }}>
+              <ShieldCheck size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Most Reliable Acc</div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                {masterData.length > 0 ? getTopModelForMetric("Reliable Accuracy")?.Model : "Loading..."}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#14b8a6', fontWeight: 600, marginTop: '1px' }}>
+                {masterData.length > 0 ? `${((getTopModelForMetric("Reliable Accuracy")?.["Reliable Accuracy"] ?? 0) * 100).toFixed(1)}% Reliable` : ""}
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ background: '#2c2c2c', padding: '10px', borderRadius: '8px', color: '#8b5cf6', border: '1px solid #383838' }}>
+              <CheckCircle2 size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Recoverable Answer</div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                {masterData.length > 0 ? getTopModelForMetric("Answer Recoverable Rate")?.Model : "Loading..."}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#8b5cf6', fontWeight: 600, marginTop: '1px' }}>
+                {masterData.length > 0 ? `${((getTopModelForMetric("Answer Recoverable Rate")?.["Answer Recoverable Rate"] ?? 0) * 100).toFixed(1)}% Recoverable` : ""}
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ background: '#2c2c2c', padding: '10px', borderRadius: '8px', color: '#f43f5e', border: '1px solid #383838' }}>
+              <Filter size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Lowest Leak Rate</div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                {masterData.length > 0 ? getTopModelForMetric("FN Call Leak Rate")?.Model : "Loading..."}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#2cbb5d', fontWeight: 600, marginTop: '1px' }}>
+                {masterData.length > 0 ? `${((getTopModelForMetric("FN Call Leak Rate")?.["FN Call Leak Rate"] ?? 0) * 100).toFixed(1)}% Leakage` : ""}
               </div>
             </div>
           </div>
@@ -309,7 +391,7 @@ export default function App() {
             </div>
             <div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Fastest Generation</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                 {masterData.length > 0 ? getTopModelForMetric("Latency (s)")?.Model : "Loading..."}
               </div>
               <div style={{ fontSize: '0.75rem', color: '#2cbb5d', fontWeight: 600, marginTop: '1px' }}>
@@ -317,42 +399,31 @@ export default function App() {
               </div>
             </div>
           </div>
-
-          <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ background: '#2c2c2c', padding: '10px', borderRadius: '8px', color: '#c084fc', border: '1px solid #383838' }}>
-              <ShieldCheck size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Lowest Hallucination</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                {masterData.length > 0 ? getTopModelForMetric("Hallucination Rate")?.Model : "Loading..."}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: 600, marginTop: '1px' }}>
-                {masterData.length > 0 ? `${((getTopModelForMetric("Hallucination Rate")?.["Hallucination Rate"] ?? 0) * 100).toFixed(1)}% Rate` : ""}
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* TAB 1: SEPARATE BAR GRAPHS FOR ALL 15 METRICS */}
+        {/* TAB 1: SEPARATE BAR GRAPHS FOR ALL 42 METRICS */}
         {activeTab === 'metrics' && (
           <div>
             {/* Filter Bar for Metric Categories */}
             <div className="glass-panel" style={{ padding: '14px 20px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Filter size={16} color="var(--accent-orange)" />
-                <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>Filter Metric Category:</span>
+                <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>Filter Metric Category ({filteredMetrics.length} shown):</span>
               </div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {['All', 'Accuracy & Match', 'LLM Judge & Quality', 'Faithfulness & Safety', 'Performance & Speed'].map(cat => (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {[
+                  'All (42)', 'Core 15', 'Derived 27',
+                  'Accuracy & Match', 'LLM Judge & Quality', 'Faithfulness & Safety', 'Performance & Speed',
+                  'Format & Leakage', 'Task Granularity', 'Judge Alignment', 'Reliability & Grounding', 'Efficiency & Scaling', 'Robustness & CI'
+                ].map(cat => (
                   <button
                     key={cat}
                     onClick={() => setMetricFilter(cat)}
                     style={{
-                      padding: '6px 12px', borderRadius: '6px', border: metricFilter === cat ? '1px solid var(--accent-orange)' : '1px solid var(--border-color)',
+                      padding: '5px 11px', borderRadius: '6px', border: metricFilter === cat ? '1px solid var(--accent-orange)' : '1px solid var(--border-color)',
                       background: metricFilter === cat ? '#333333' : 'var(--bg-subtle)',
                       color: metricFilter === cat ? '#ffa116' : 'var(--text-secondary)',
-                      cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.15s ease'
+                      cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, transition: 'all 0.15s ease'
                     }}
                   >
                     {cat}
@@ -709,46 +780,120 @@ export default function App() {
 
         {/* TAB 4: MASTER TABLE */}
         {activeTab === 'table' && (
-          <div className="glass-panel" style={{ padding: '20px', overflowX: 'auto' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '14px', color: 'var(--text-primary)' }}>Consolidated Master Benchmark Table</h2>
-            <table className="table-custom">
-              <thead>
-                <tr>
-                  <th>Model</th>
-                  <th>Exact Match</th>
-                  <th>F1 Score</th>
-                  <th>BLEU</th>
-                  <th>ROUGE</th>
-                  <th>Judge Score</th>
-                  <th>Completeness</th>
-                  <th>Helpfulness</th>
-                  <th>Faithfulness</th>
-                  <th>BERTScore</th>
-                  <th>Hallucination</th>
-                  <th>Latency</th>
-                  <th>Tok/Sec</th>
-                </tr>
-              </thead>
-              <tbody>
-                {masterData.map(m => (
-                  <tr key={m.Model}>
-                    <td style={{ fontWeight: 700, color: MODEL_COLOR_MAP[m.Model] || 'var(--text-primary)' }}>{m.Model}</td>
-                    <td>{((m["Exact Match"] ?? 0) * 100).toFixed(1)}%</td>
-                    <td>{((m.F1 ?? 0) * 100).toFixed(1)}%</td>
-                    <td>{(m.BLEU ?? 0).toFixed(3)}</td>
-                    <td>{((m.ROUGE ?? 0) * 100).toFixed(1)}%</td>
-                    <td><span className="badge badge-amber">{(m["Judge Score"] ?? 0).toFixed(2)} / 5</span></td>
-                    <td>{(m.Completeness ?? 0).toFixed(2)}</td>
-                    <td>{(m.Helpfulness ?? 0).toFixed(2)}</td>
-                    <td>{((m["Reasoning Faithfulness"] ?? 0) * 100).toFixed(1)}%</td>
-                    <td>{(m.BERTScore ?? 0).toFixed(4)}</td>
-                    <td><span className="badge badge-rose">{((m["Hallucination Rate"] ?? 0) * 100).toFixed(1)}%</span></td>
-                    <td>{(m["Latency (s)"] ?? 0).toFixed(2)}s</td>
-                    <td>{(m["Tokens/sec"] ?? 0).toFixed(1)}</td>
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Award size={18} color="var(--accent-orange)" />
+                  Consolidated Benchmark Master Table ({tableFilter === 'all' ? 'All 42 Metrics' : tableFilter === 'core' ? '15 Core Metrics' : '27 Derived Metrics'})
+                </h2>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  High-density multi-model benchmark matrix with automated score formatting and unit normalization.
+                </p>
+              </div>
+
+              {/* View Toggle Buttons */}
+              <div style={{ display: 'flex', background: 'var(--bg-subtle)', borderRadius: '6px', padding: '3px', border: '1px solid var(--border-color)', gap: '4px' }}>
+                <button
+                  onClick={() => setTableFilter('all')}
+                  style={{
+                    padding: '6px 12px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
+                    background: tableFilter === 'all' ? '#333333' : 'transparent',
+                    color: tableFilter === 'all' ? 'var(--accent-orange)' : 'var(--text-secondary)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  All 42 Metrics
+                </button>
+                <button
+                  onClick={() => setTableFilter('core')}
+                  style={{
+                    padding: '6px 12px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
+                    background: tableFilter === 'core' ? '#333333' : 'transparent',
+                    color: tableFilter === 'core' ? 'var(--accent-orange)' : 'var(--text-secondary)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Core 15 Metrics
+                </button>
+                <button
+                  onClick={() => setTableFilter('derived')}
+                  style={{
+                    padding: '6px 12px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
+                    background: tableFilter === 'derived' ? '#333333' : 'transparent',
+                    color: tableFilter === 'derived' ? 'var(--accent-orange)' : 'var(--text-secondary)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Derived 27 Metrics
+                </button>
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+              <table className="table-custom" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr style={{ background: '#252525', borderBottom: '1px solid var(--border-color)' }}>
+                    <th style={{ position: 'sticky', left: 0, background: '#252525', zIndex: 2, padding: '10px 14px', textAlign: 'left', minWidth: '180px' }}>
+                      Model Name
+                    </th>
+                    {Object.keys(METRIC_DEFINITIONS)
+                      .filter(k => {
+                        const isCore = CORE_CATEGORIES.includes(METRIC_DEFINITIONS[k].category);
+                        if (tableFilter === 'core') return isCore;
+                        if (tableFilter === 'derived') return !isCore;
+                        return true;
+                      })
+                      .map(k => (
+                        <th key={k} style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap', minWidth: '120px' }} title={METRIC_DEFINITIONS[k].description}>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{k}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 400 }}>{METRIC_DEFINITIONS[k].category}</div>
+                        </th>
+                      ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {masterData.map(m => (
+                    <tr key={m.Model} style={{ borderBottom: '1px solid #2a2a2a' }}>
+                      <td style={{ position: 'sticky', left: 0, background: 'var(--bg-subtle)', zIndex: 1, fontWeight: 700, padding: '10px 14px', color: MODEL_COLOR_MAP[m.Model] || 'var(--text-primary)' }}>
+                        {m.Model}
+                      </td>
+                      {Object.keys(METRIC_DEFINITIONS)
+                        .filter(k => {
+                          const isCore = CORE_CATEGORIES.includes(METRIC_DEFINITIONS[k].category);
+                          if (tableFilter === 'core') return isCore;
+                          if (tableFilter === 'derived') return !isCore;
+                          return true;
+                        })
+                        .map(k => {
+                          const def = METRIC_DEFINITIONS[k];
+                          const rawVal = m[k];
+                          const formatted = (rawVal !== undefined && rawVal !== null)
+                            ? (def.format ? def.format(rawVal) : String(rawVal))
+                            : "-";
+                          
+                          const topModel = getTopModelForMetric(k);
+                          const isBest = topModel?.Model === m.Model;
+
+                          return (
+                            <td key={k} style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              {isBest ? (
+                                <span style={{ fontWeight: 700, color: '#2cbb5d' }}>
+                                  {formatted}
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--text-secondary)' }}>
+                                  {formatted}
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </main>

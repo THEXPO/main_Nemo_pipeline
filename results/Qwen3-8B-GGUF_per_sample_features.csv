@@ -1,0 +1,101 @@
+sample_id,task_type,category,target,normalized_answer,extracted_answer,exact_match,judge_score,completeness,helpfulness,is_hallucinated,is_failure,latency_seconds,tokens_in,tokens_out,has_fn_call_leak,has_extraction_success,has_final_answer_line,is_answer_recoverable,ungrounded_number_ratio,token_ratio
+item_001,qa_label,Banking_KYC_Applicability,Yes,Yes,"Yes, KYC is mandatory when opening any type of account with a Regulated Entity.",1.0,5.0,2.0,5.0,False,False,3.6422,325,45,False,True,True,1,,0.13846153846153847
+item_002,qa_label,Banking_KYC_Applicability,Yes,Yes,Yes,1.0,5.0,2.0,5.0,True,False,2.1375,334,29,False,True,True,1,0.0,0.08682634730538923
+item_003,qa_label,Banking_KYC_Applicability,Yes,Yes,Yes,1.0,5.0,2.0,5.0,False,False,4.4898,329,68,False,True,True,1,,0.2066869300911854
+item_004,qa_label,Banking_KYC_Applicability,Yes,Yes,"Yes, an RE's doubt about the authenticity or adequacy of previously obtained customer identification data triggers a KYC requirement.",1.0,5.0,2.0,5.0,False,False,4.5207,332,68,False,True,True,1,,0.20481927710843373
+item_005,qa_label,Banking_KYC_Applicability,No,No,No,1.0,5.0,2.0,5.0,False,False,3.3183,341,49,False,True,True,1,,0.1436950146627566
+item_006,qa_label,Banking_KYC_Applicability,A person who does not have an account-based relationship with the RE but undertakes transactions with it,A person who does not have an account-based relationship with the RE but undertakes transactions with it,"Yes, a Walk-in Customer is someone who visits the branch of a Regulated Entity (RE) and transacts without prior appointment or arrangement.",0.0,5.0,2.0,5.0,False,False,4.5031,323,68,False,True,True,0,,0.21052631578947367
+item_007,qa_label,Banking_KYC_Documents,No,No,No,1.0,5.0,2.0,5.0,False,False,2.2417,320,30,False,True,True,1,,0.09375
+item_008,qa_label,Banking_KYC_Documents,"When seeking a benefit or subsidy under a scheme notified under section 7 of the Aadhaar Act, 2016","When seeking a benefit or subsidy under a scheme notified under section 7 of the Aadhaar Act, 2016","Yes, if the aggregate value of transactions exceeds ₹5 lakh in a financial year.",0.0,1.0,1.0,5.0,False,False,4.226,321,61,False,True,True,0,1.0,0.19003115264797507
+item_009,qa_label,Banking_KYC_Documents,Yes,Yes,"Yes, an individual must provide PAN (or equivalent e-document) but Form No. 60 is not required.",1.0,5.0,3.0,5.0,True,False,6.6377,332,99,False,True,True,1,0.0,0.29819277108433734
+item_010,qa_label,Banking_KYC_Documents,Yes,Yes,No,0.0,5.0,2.0,5.0,False,False,5.4637,333,80,False,True,True,0,,0.24024024024024024
+item_011,qa_label,Banking_KYC_Documents,Deemed OVD (for proof of address only),Deemed OVD (for proof of address only),"No, a utility bill is acceptable for the purpose of proof of address under the RBI Master Direction on KYC and PMLA Rules.",0.0,5.0,2.0,5.0,False,False,3.855,325,58,False,True,True,0,,0.17846153846153845
+item_012,qa_label,Banking_KYC_Documents,Two months,Two months,No,0.0,1.0,1.0,5.0,False,False,2.5782,330,37,False,True,True,0,,0.11212121212121212
+item_013,qa_label,Banking_KYC_Documents,Yes,Yes,"Yes, the driving licence is an Officially Valid Document for individuals.",1.0,5.0,3.0,5.0,False,False,3.5223,321,51,False,True,True,1,,0.1588785046728972
+item_014,qa_label,Banking_KYC_Documents,No,No,No,1.0,5.0,2.0,5.0,False,False,2.6174,324,37,False,True,True,1,,0.11419753086419752
+item_015,qa_label,Banking_KYC_Documents,Yes,Yes,No,0.0,5.0,2.0,5.0,False,False,2.6769,331,39,False,True,True,0,,0.11782477341389729
+item_016,qa_label,Banking_KYC_Documents,Yes,Yes,No,0.0,1.0,1.0,5.0,False,False,2.6008,327,36,False,True,True,0,,0.11009174311926606
+item_017,qa_label,Banking_KYC_Documents,Gazette notification or marriage certificate issued by the State Government,Gazette notification or marriage certificate issued by the State Government,"Yes, documents proving the name change, such as a certified copy of the marriage certificate, court order, or gazette notification, can be submitted along with the OVD.",0.0,5.0,3.0,5.0,False,False,6.8922,341,106,False,True,True,0,,0.31085043988269795
+item_018,qa_label,Banking_KYC_Documents,Yes,Yes,No,0.0,1.0,1.0,5.0,False,False,4.1019,335,62,False,True,True,0,,0.18507462686567164
+item_019,qa_label,Banking_KYC_Small_Account,"Yes, a Small Account","Yes, a Small Account",Yes,0.0,5.0,3.0,5.0,False,False,4.0894,322,62,False,True,True,0,,0.19254658385093168
+item_020,qa_label,Banking_KYC_Small_Account,Twelve months,Twelve months,1 year,0.0,5.0,2.0,5.0,False,False,2.6194,320,36,False,True,True,0,1.0,0.1125
+item_021,qa_label,Banking_KYC_Small_Account,A self-attested photograph,A self-attested photograph,"Yes, the customer must provide their PAN.",0.0,1.0,1.0,5.0,False,False,3.0326,323,44,False,True,True,0,,0.13622291021671826
+item_022,qa_label,Banking_KYC_Onboarding,No,No,No,1.0,5.0,2.0,5.0,False,False,3.1907,338,46,False,True,True,1,,0.13609467455621302
+item_023,qa_label,Banking_KYC_Onboarding,Yes,Yes,Yes. All account holders of a joint account must submit KYC documents.,1.0,5.0,2.0,5.0,False,False,3.1087,322,46,False,True,True,1,,0.14285714285714285
+item_024,qa_label,Banking_KYC_Onboarding,Yes,Yes,Yes,1.0,5.0,3.0,5.0,False,False,3.7299,334,56,False,True,True,1,,0.16766467065868262
+item_025,qa_label,Banking_KYC_Onboarding,No,No,"Yes, provided that the automated system is designed to ensure compliance with all relevant RBI guidelines and PMLA Rules.",0.0,1.0,1.0,5.0,False,False,5.5534,325,84,False,True,True,0,,0.25846153846153846
+item_026,qa_label,Banking_KYC_Onboarding,Yes,Yes,No,0.0,1.0,1.0,5.0,False,False,2.548,329,35,False,True,True,0,,0.10638297872340426
+item_027,qa_label,Banking_KYC_CKYC,Central KYC Records Registry (CKYCR),Central KYC Records Registry (CKYCR),Regulated Entity (RE),0.0,1.0,1.0,5.0,False,False,4.0392,320,60,False,True,True,0,,0.1875
+item_028,qa_label,Banking_KYC_CKYC,Yes,Yes,No,0.0,1.0,1.0,5.0,False,False,3.5592,334,52,False,True,True,0,,0.15568862275449102
+item_029,qa_label,Banking_KYC_CKYC,www.ckycindia.in,www.ckycindia.in,"No, there is no specified portal under RBI Master Direction on KYC or PMLA Rules for customers to access their KYC Identifier directly.",0.0,5.0,3.0,5.0,False,False,4.0352,321,60,False,True,True,0,,0.18691588785046728
+item_030,qa_label,Banking_KYC_CKYC,Yes,Yes,"Yes, the KYC Identifier can be used for periodic updation of KYC in addition to account opening.",1.0,5.0,3.0,5.0,False,False,4.818,329,74,False,True,True,1,,0.22492401215805471
+item_031,qa_label,Banking_KYC_VCIP,Yes,Yes,No,0.0,5.0,2.0,5.0,False,False,2.7381,323,40,False,True,True,0,,0.1238390092879257
+item_032,qa_label,Banking_KYC_VCIP,No,No,No,1.0,5.0,2.0,5.0,False,False,3.0106,329,44,False,True,True,1,,0.1337386018237082
+item_033,qa_label,Banking_KYC_VCIP,Yes,Yes,"Yes, V-CIP can be used for updation or periodic updation of KYC records of eligible customers, provided it is done in accordance with the prescribed procedures and thresholds.",1.0,5.0,3.0,5.0,False,False,7.3135,330,114,False,True,True,1,,0.34545454545454546
+item_034,qa_label,Banking_KYC_VCIP,Yes,Yes,No,0.0,1.0,1.0,5.0,False,False,2.292,320,31,False,True,True,0,,0.096875
+item_035,qa_label,Banking_KYC_VCIP,Video-based Customer Identification Process (V-CIP),Video-based Customer Identification Process (V-CIP),e-KYC,0.0,5.0,2.0,5.0,False,False,4.0846,331,61,False,True,True,0,,0.18429003021148035
+item_036,qa_label,Banking_KYC_Periodic_Updation,No,No,No,1.0,5.0,2.0,5.0,False,False,2.1142,325,28,False,True,True,1,,0.08615384615384615
+item_037,qa_label,Banking_KYC_Periodic_Updation,At least once every two years,At least once every two years,Once in every twelve months,0.0,1.0,1.0,1.0,False,False,2.6194,327,37,False,True,True,0,,0.11314984709480122
+item_038,qa_label,Banking_KYC_Periodic_Updation,At least once every eight years,At least once every eight years,Once in every 12 months,0.0,1.0,1.0,5.0,False,False,3.0663,327,44,False,True,True,0,1.0,0.1345565749235474
+item_039,qa_label,Banking_KYC_Periodic_Updation,At least once every ten years,At least once every ten years,Once in every 12 months,0.0,1.0,1.0,1.0,False,False,3.0795,327,44,False,True,True,0,1.0,0.1345565749235474
+item_040,qa_label,Banking_KYC_Periodic_Updation,Yes,Yes,"Yes, a customer can submit a self-declaration for periodic updation when there is no change in KYC information.",1.0,5.0,2.0,5.0,False,False,4.3282,331,65,False,True,True,1,,0.19637462235649547
+item_041,qa_label,Banking_KYC_Periodic_Updation,Within two months,Within two months,90 days,0.0,1.0,1.0,1.0,True,False,3.073,328,44,False,True,True,0,1.0,0.13414634146341464
+item_042,qa_label,Banking_KYC_Periodic_Updation,Yes,Yes,No,0.0,5.0,2.0,5.0,False,False,4.0173,324,60,False,True,True,0,,0.18518518518518517
+item_043,qa_label,Banking_KYC_Periodic_Updation,Yes,Yes,"Yes, an RE must give advance notice and subsequent reminders to customers for pending periodic updation.",1.0,5.0,2.0,5.0,True,False,4.8159,326,75,False,True,True,1,1.0,0.23006134969325154
+item_044,qa_label,Banking_KYC_Periodic_Updation,Close the account after giving due notice,Close the account after giving due notice,"Yes, the RE may suspend or terminate the account or transaction until the required information is provided.",0.0,5.0,2.0,5.0,False,False,3.5893,327,54,False,True,True,0,,0.1651376146788991
+item_045,qa_label,Banking_KYC_Fraud_Awareness,"No, exercise utmost caution as they may be fraudulent","No, exercise utmost caution as they may be fraudulent",No. Customers should not click on such links as they may be fraudulent and pose a risk to their personal and financial information.,0.0,5.0,2.0,5.0,False,False,5.7935,328,89,False,True,True,0,,0.27134146341463417
+item_046,qa_label,Banking_KYC_Instruments,No,No,No,1.0,5.0,2.0,5.0,True,False,2.3891,328,34,False,True,True,1,0.0,0.10365853658536585
+item_047,qa_label,Banking_KYC_Instruments,By debiting the customer's account or against cheques,By debiting the customer's account or against cheques,"No, such instruments cannot be issued without proper KYC verification.",0.0,5.0,2.0,5.0,True,False,3.9965,335,61,False,True,True,0,0.0,0.18208955223880596
+item_048,qa_label,Banking_KYC_Instruments,No,No,No,1.0,5.0,2.0,5.0,True,False,5.0928,326,77,False,True,True,1,1.0,0.2361963190184049
+item_049,qa_label,Banking_KYC_Documents,Within 30 days,Within 30 days,30 days,0.0,5.0,2.0,5.0,True,False,2.775,330,39,False,True,True,1,0.0,0.11818181818181818
+item_050,qa_label,Banking_KYC_Inoperative_Accounts,Yes,Yes,"Yes, if the bank provides the facility and meets all KYC and AML/CFT requirements.",1.0,5.0,2.0,5.0,False,False,4.6455,329,69,False,True,True,1,,0.20972644376899696
+item_051,qa_numeric_program,Banking_KYC_Applicability,"₹48,000",48000,48000,1.0,5.0,3.0,5.0,False,False,6.5655,186,102,False,True,True,1,0.0,0.5483870967741935
+item_052,qa_numeric_program,Banking_KYC_Applicability,"₹47,000",47000,47000,1.0,5.0,3.0,5.0,False,False,7.0078,187,112,False,True,True,1,0.0,0.5989304812834224
+item_053,qa_numeric_program,Banking_KYC_Applicability,"₹52,500",52500,52500,1.0,5.0,3.0,5.0,False,False,6.5178,187,104,False,True,True,1,0.0,0.5561497326203209
+item_054,qa_numeric_program,Banking_KYC_Applicability,"₹62,000",62000,62000,1.0,5.0,3.0,5.0,False,False,6.2728,187,99,False,True,True,1,0.0,0.5294117647058824
+item_055,qa_numeric_program,Banking_KYC_Applicability,"₹39,000",39000,39000,1.0,5.0,2.0,5.0,False,False,5.996,185,95,False,True,True,1,0.0,0.5135135135135135
+item_056,qa_numeric_program,Banking_KYC_Applicability,"₹40,000",40000,40000,1.0,5.0,3.0,5.0,False,False,7.0246,187,112,False,True,True,1,0.0,0.5989304812834224
+item_057,qa_numeric_program,Banking_KYC_Applicability,"₹9,500",9500,9500,1.0,5.0,3.0,5.0,True,False,7.9557,193,128,False,True,True,1,0.2,0.6632124352331606
+item_058,qa_numeric_program,Banking_KYC_Applicability,"₹18,000",18000,"₹18,000",1.0,5.0,3.0,5.0,True,False,6.5027,194,104,False,True,True,1,0.2,0.5360824742268041
+item_059,qa_numeric_program,Banking_KYC_Applicability,"₹26,000",26000,26000,1.0,5.0,3.0,5.0,True,False,4.9758,194,78,False,True,True,1,0.16666666666666666,0.4020618556701031
+item_060,qa_numeric_program,Banking_KYC_Applicability,"₹13,500",13500,13500,1.0,5.0,2.0,5.0,True,False,6.9973,194,112,False,True,True,1,0.16666666666666666,0.5773195876288659
+item_061,qa_numeric_program,Banking_KYC_Applicability,"₹20,000",20000,20000,1.0,5.0,3.0,5.0,True,False,4.9609,194,78,False,True,True,1,0.16666666666666666,0.4020618556701031
+item_062,qa_numeric_program,Banking_KYC_Applicability,"₹12,000",12000,12000,1.0,5.0,3.0,5.0,True,False,9.5574,194,154,False,True,True,1,0.16666666666666666,0.7938144329896907
+item_063,qa_numeric_program,Banking_KYC_Periodic_Updation,2016,2016,2016,1.0,5.0,2.0,5.0,False,False,5.0077,167,76,False,True,True,1,0.3333333333333333,0.4550898203592814
+item_064,qa_numeric_program,Banking_KYC_Periodic_Updation,2029,2029,2029,1.0,5.0,3.0,5.0,False,False,6.0014,167,93,False,True,True,1,0.3333333333333333,0.5568862275449101
+item_065,qa_numeric_program,Banking_KYC_Periodic_Updation,2032,2032,2032,1.0,5.0,3.0,5.0,False,False,6.4918,167,104,False,True,True,1,0.3333333333333333,0.6227544910179641
+item_066,qa_numeric_program,Banking_KYC_Periodic_Updation,2017,2017,2017,1.0,5.0,3.0,5.0,False,False,4.8142,167,76,False,True,True,1,0.3333333333333333,0.4550898203592814
+item_067,qa_numeric_program,Banking_KYC_Periodic_Updation,2028,2028,2028,1.0,5.0,3.0,5.0,False,False,5.6713,167,93,False,True,True,1,0.3333333333333333,0.5568862275449101
+item_068,qa_numeric_program,Banking_KYC_Periodic_Updation,2025,2025,2025,1.0,5.0,3.0,5.0,False,False,6.1787,167,100,False,True,True,1,0.3333333333333333,0.5988023952095808
+item_069,qa_numeric_program,Banking_KYC_Periodic_Updation,2024,2024,2024,1.0,5.0,3.0,5.0,False,False,5.6259,167,93,False,True,True,1,0.3333333333333333,0.5568862275449101
+item_070,qa_numeric_program,Banking_KYC_Periodic_Updation,2026,2026,2026,1.0,5.0,3.0,5.0,False,False,5.6693,167,93,False,True,True,1,0.3333333333333333,0.5568862275449101
+item_071,qa_numeric_program,Banking_KYC_Periodic_Updation,2033,2033,2033,1.0,5.0,3.0,5.0,False,False,5.911,167,95,False,True,True,1,0.3333333333333333,0.5688622754491018
+item_072,qa_numeric_program,Banking_KYC_Periodic_Updation,2021,2021,2021,1.0,5.0,3.0,5.0,False,False,5.6175,167,93,False,True,True,1,0.3333333333333333,0.5568862275449101
+item_073,qa_numeric_program,Banking_KYC_Periodic_Updation,12,12,12,1.0,5.0,3.0,5.0,False,False,3.9911,156,65,False,True,True,1,0.3333333333333333,0.4166666666666667
+item_074,qa_numeric_program,Banking_KYC_Periodic_Updation,2,2,2,1.0,5.0,3.0,5.0,False,False,4.1421,156,68,False,True,True,1,0.3333333333333333,0.4358974358974359
+item_075,qa_numeric_program,Banking_KYC_Periodic_Updation,2,2,2,1.0,5.0,3.0,5.0,False,False,4.0992,156,67,False,True,True,1,0.3333333333333333,0.42948717948717946
+item_076,qa_numeric_program,Banking_KYC_Periodic_Updation,12,12,12,1.0,5.0,3.0,5.0,False,False,3.9488,156,65,False,True,True,1,0.3333333333333333,0.4166666666666667
+item_077,qa_numeric_program,Banking_KYC_Periodic_Updation,3,3,3,1.0,5.0,2.0,5.0,False,False,4.445,156,72,False,True,True,1,0.3333333333333333,0.46153846153846156
+item_078,qa_numeric_program,Banking_KYC_Periodic_Updation,2,2,2,1.0,5.0,3.0,5.0,False,False,3.9886,156,67,False,True,True,1,0.3333333333333333,0.42948717948717946
+item_079,qa_numeric_program,Banking_KYC_Instruments,4 months,4,4,1.0,5.0,2.0,5.0,False,False,2.8969,159,45,False,True,True,1,0.3333333333333333,0.2830188679245283
+item_080,qa_numeric_program,Banking_KYC_Instruments,2 months,2,2,1.0,5.0,3.0,5.0,False,False,5.2354,159,87,False,True,True,1,0.3333333333333333,0.5471698113207547
+item_081,qa_numeric_program,Banking_KYC_Instruments,7 months,7,7,1.0,5.0,2.0,5.0,False,False,3.5064,160,55,False,True,True,1,0.3333333333333333,0.34375
+item_082,qa_numeric_program,Banking_KYC_Instruments,5 months,5,5,1.0,5.0,2.0,5.0,False,False,2.8083,159,45,False,True,True,1,0.3333333333333333,0.2830188679245283
+item_083,qa_numeric_program,Banking_KYC_Instruments,8 months,8,8,1.0,5.0,2.0,5.0,False,False,3.3987,160,55,False,True,True,1,0.3333333333333333,0.34375
+item_084,qa_numeric_program,Banking_KYC_Instruments,6 months,6,6,1.0,5.0,2.0,5.0,False,False,2.8561,159,45,False,True,True,1,0.3333333333333333,0.2830188679245283
+item_085,qa_numeric_program,Banking_KYC_Documents,22 days,22,22,1.0,5.0,3.0,5.0,False,False,3.6026,146,58,False,True,True,1,0.0,0.3972602739726027
+item_086,qa_numeric_program,Banking_KYC_Documents,16 days,16,16,1.0,5.0,2.0,5.0,False,False,3.3893,147,53,False,True,True,1,0.0,0.36054421768707484
+item_087,qa_numeric_program,Banking_KYC_Documents,16 days,16,16,1.0,5.0,2.0,5.0,False,False,3.178,147,53,False,True,True,1,0.0,0.36054421768707484
+item_088,qa_numeric_program,Banking_KYC_Documents,2 month(s),2,2,1.0,5.0,3.0,5.0,False,False,4.6383,162,75,False,True,True,1,0.3333333333333333,0.46296296296296297
+item_089,qa_numeric_program,Banking_KYC_Documents,1 month(s),1,1,1.0,5.0,3.0,5.0,False,False,4.0489,162,66,False,True,True,1,0.3333333333333333,0.4074074074074074
+item_090,qa_numeric_program,Banking_KYC_Periodic_Updation,1.5 months,1.5,1.5,1.0,5.0,2.0,5.0,False,False,3.1328,136,50,False,True,True,1,0.3333333333333333,0.36764705882352944
+item_091,qa_numeric_program,Banking_KYC_Periodic_Updation,0.5 months,0.5,0.5,1.0,5.0,2.0,5.0,False,False,3.6126,136,57,False,True,True,1,0.3333333333333333,0.41911764705882354
+item_092,qa_numeric_program,Banking_KYC_Instruments,2,2,2,1.0,5.0,3.0,5.0,False,False,8.825,193,145,False,True,True,1,0.0,0.7512953367875648
+item_093,qa_numeric_program,Banking_KYC_Instruments,2,2,2,1.0,5.0,3.0,5.0,False,False,7.6583,193,125,False,True,True,1,0.0,0.6476683937823834
+item_094,qa_numeric_program,Banking_KYC_Instruments,2,2,2,1.0,5.0,3.0,5.0,False,False,6.1529,201,101,False,True,True,1,0.0,0.5024875621890548
+item_095,qa_numeric_program,Banking_KYC_Instruments,"₹52,000",52000,52000,1.0,5.0,3.0,5.0,False,False,8.2206,207,135,False,True,True,1,0.0,0.6521739130434783
+item_096,qa_numeric_program,Banking_KYC_Instruments,"₹100,000",100000,100000,1.0,5.0,3.0,5.0,False,False,13.3935,208,219,False,True,True,1,0.0,1.0528846153846154
+item_097,qa_numeric_program,Banking_KYC_Inoperative_Accounts,6 months,6,6,1.0,5.0,3.0,5.0,False,False,4.2404,149,68,False,True,True,1,0.5,0.4563758389261745
+item_098,qa_numeric_program,Banking_KYC_Inoperative_Accounts,12 months,12,12,1.0,5.0,1.0,5.0,False,False,4.2682,149,70,False,True,True,1,0.5,0.4697986577181208
+item_099,qa_numeric_program,Banking_KYC_Inoperative_Accounts,3 months,3,3,1.0,5.0,2.0,5.0,False,False,4.1955,149,68,False,True,True,1,0.5,0.4563758389261745
+item_100,qa_numeric_program,Banking_KYC_Inoperative_Accounts,24 months,24,24,1.0,5.0,3.0,5.0,False,False,4.2625,149,70,False,True,True,1,0.3333333333333333,0.4697986577181208

@@ -11,21 +11,7 @@ import {
 
 export interface ModelAggregates {
   Model: string;
-  "Exact Match": number;
-  F1: number;
-  BLEU: number;
-  ROUGE: number;
-  "Judge Score": number;
-  Completeness: number;
-  Helpfulness: number;
-  "Reasoning Faithfulness": number;
-  BERTScore: number;
-  "Hallucination Rate": number;
-  "Failure Rate": number;
-  "Latency (s)": number;
-  "Throughput (req/s)": number;
-  "Tokens/sec": number;
-  "Category Accuracy": number;
+  [key: string]: any;
 }
 
 export interface MetricDef {
@@ -338,6 +324,9 @@ export default function ModelComparison({
   // Filtered rows for the comparison table
   const filteredMetricRows = useMemo(() => {
     if (activeCategory === 'All') return comparisonStats.metricRows;
+    const coreCategories = ['Accuracy & Match', 'LLM Judge & Quality', 'Faithfulness & Safety', 'Performance & Speed'];
+    if (activeCategory === 'Core 15') return comparisonStats.metricRows.filter(r => coreCategories.includes(r.def.category));
+    if (activeCategory === 'Derived 27') return comparisonStats.metricRows.filter(r => !coreCategories.includes(r.def.category));
     return comparisonStats.metricRows.filter(r => r.def.category === activeCategory);
   }, [comparisonStats.metricRows, activeCategory]);
 
@@ -834,16 +823,20 @@ export default function ModelComparison({
           <div>
             <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Award size={18} color="var(--accent-orange)" />
-              All 15 Evaluated Metrics Side-by-Side Numbers & Advantage Deltas
+              All 42 Evaluated Metrics Side-by-Side Numbers & Advantage Deltas
             </h3>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              Granular numerical comparison with automated delta calculation and winner assignment.
+              Granular numerical comparison across 15 core and 27 derived metrics with automated delta calculation and winner assignment.
             </p>
           </div>
 
           {/* Metric Category Filter Pills */}
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {['All', 'Accuracy & Match', 'LLM Judge & Quality', 'Faithfulness & Safety', 'Performance & Speed'].map(cat => (
+            {[
+              'All', 'Core 15', 'Derived 27',
+              'Accuracy & Match', 'LLM Judge & Quality', 'Faithfulness & Safety', 'Performance & Speed',
+              'Format & Leakage', 'Task Granularity', 'Judge Alignment', 'Reliability & Grounding', 'Efficiency & Scaling', 'Robustness & CI'
+            ].map(cat => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}

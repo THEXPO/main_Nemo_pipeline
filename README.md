@@ -137,3 +137,84 @@ If you already generated predictions in `results/predictions.jsonl` and want to 
 - **`heatmap_task_type.png`**: Accuracy heatmap by task type.
 - **`heatmap_company.png`**: Accuracy heatmap across categories / entities.
 - **`consistency_spread.png`**: Score spread box plot for repeated runs (when `--consistency-sample` is used).
+
+---
+
+## 6. Derived Metrics Layer (27 Model-Level Features)
+
+The pipeline includes an additive, fail-safe derived metrics layer that computes 27 model-level features across 6 evaluation dimensions on top of existing predictions and aggregates without requiring extra model or judge inferences.
+
+### Three Usage Modes
+
+#### Mode A: Post-Hoc on Already-Run Models
+Run on an existing predictions and aggregates pair:
+```powershell
+python derived_metrics.py --predictions results/meta-llama-3.1-8b-instruct_predictions.jsonl --aggregates results/meta-llama-3.1-8b-instruct_aggregates.json
+```
+Or process every model found in a results directory:
+```powershell
+python derived_metrics.py --dir results/
+```
+
+#### Mode B: Fresh Run (Automatic Pipeline Hook)
+During normal evaluation runs, `llm_benchmark.py` automatically invokes the derived metrics layer after writing predictions and aggregates:
+```powershell
+python llm_benchmark.py --sample-size 0
+```
+To disable derived metrics during a fresh benchmark run, pass `--no-derived-metrics` or set `DERIVED_METRICS=0`.
+
+#### Mode C: Recompute / Re-run
+Recompute derived metrics from saved predictions deterministically without re-running model generation or the judge:
+```powershell
+python derived_metrics.py --recompute --dir results/
+```
+Running recompute repeatedly is idempotent and yields identical files.
+
+### Output Files (Per Model)
+
+For each model, the layer produces three non-destructive files in the output directory:
+- `<model>_derived_features.json`: The 27 derived metric values and the feature catalog.
+- `<model>_all_metrics.json`: The 15 original aggregate metrics and 27 derived metrics flat in one JSON, plus `"model"` and `"n_samples"`.
+- `<model>_per_sample_features.csv`: Per-sample intermediate analysis columns (`has_fn_call_leak`, `is_answer_recoverable`, `ungrounded_number_ratio`, `token_ratio`, etc.).
+- *(Optional)* `--merge-into-aggregates`: If passed, merges derived metrics under a `"derived"` key in `<model>_aggregates.json`, leaving existing keys untouched.
+
+### Kill Switch
+
+Set the environment variable `DERIVED_METRICS=0` (or `false`, `no`, `off`) to disable the derived metrics layer completely across all scripts:
+```powershell
+$env:DERIVED_METRICS = "0"
+```
+Or pass the CLI flag `--no-derived-metrics` when invoking `llm_benchmark.py` or `derived_metrics.py`.
+
+### 27 Derived Features Catalog
+
+| # | Feature Name | Group | Meaning |
+|---|---|---|---|
+| 1 | `fn_call_leak_rate` | FORMAT | Share of model outputs containing raw function-call JSON syntax or headers |
+| 2 | `extraction_success_rate` | FORMAT | Share of predictions with non-empty extracted answer after whitespace stripping |
+| 3 | `final_answer_line_rate` | FORMAT | Share of outputs containing an explicit 'Final Answer' line (case-insensitive) |
+| 4 | `answer_recoverable_rate` | FORMAT | Share of outputs where reference answer is literally stated in the pre-JSON text |
+| 5 | `label_exact_match` | TASK | Mean exact match accuracy for label / classification questions (`qa_label`) |
+| 6 | `numeric_exact_match` | TASK | Mean exact match accuracy for numerical / arithmetic questions (`qa_numeric_program`) |
+| 7 | `judge_em_gap` | JUDGE | Normalized gap between LLM judge score and exact match: `mean(judge_score)/5 - mean(EM)` |
+| 8 | `judge_composite` | JUDGE | Combined mean of judge score, completeness, and helpfulness |
+| 9 | `judge_leniency_rate` | JUDGE | Share of predictions awarded high judge score (`>= 4`) despite zero exact match |
+| 10 | `judge_fail_rate` | JUDGE | Share of predictions receiving a failing judge score (`<= 2`) |
+| 11 | `reliable_accuracy` | RELIABILITY | Share of predictions achieving exact match (`1.0`) without being flagged hallucinated |
+| 12 | `hallucinated_but_correct_rate` | RELIABILITY | Share of predictions achieving exact match (`1.0`) while flagged hallucinated |
+| 13 | `ungrounded_number_ratio` | RELIABILITY | Average ratio of distinct reasoning numbers not present in prompt, context, or target |
+| 14 | `ungrounded_flag_delta` | RELIABILITY | Mean ungrounded ratio of hallucinated samples minus that of non-hallucinated samples |
+| 15 | `hallucination_separation` | RELIABILITY | Separation power of hallucination flag: `P(Hallucinated \| EM == 0) - P(Hallucinated \| EM == 1)` |
+| 16 | `label_hedge_rate` | RELIABILITY | Share of label questions matching uncertainty/hedging phrases in output text |
+| 17 | `latency_per_correct` | EFFICIENCY | Average generation latency in seconds required per unit of exact match accuracy |
+| 18 | `tokens_per_correct` | EFFICIENCY | Average generated tokens consumed per unit of exact match accuracy |
+| 19 | `latency_p95` | EFFICIENCY | 95th percentile generation latency across samples (seconds) |
+| 20 | `latency_cv` | EFFICIENCY | Coefficient of variation of generation latency: `sample std / mean latency` |
+| 21 | `quality_per_second` | EFFICIENCY | Mean judge score delivered per second of generation latency |
+| 22 | `output_input_token_ratio` | EFFICIENCY | Average ratio of generated output tokens to prompt input tokens |
+| 23 | `verbosity_accuracy_corr` | EFFICIENCY | Pearson correlation coefficient between output token count and exact match |
+| 24 | `macro_exact_match` | ROBUSTNESS | Macro-averaged exact match across all category subgroups |
+| 25 | `worst_category_em` | ROBUSTNESS | Minimum exact match accuracy among categories with at least 5 samples |
+| 26 | `category_em_std` | ROBUSTNESS | Sample standard deviation of exact match across categories with at least 5 samples |
+| 27 | `em_ci95_halfwidth` | ROBUSTNESS | Half-width of 95% bootstrap confidence interval of mean exact match (2,000 resamples, seed 0) |
+
